@@ -35,4 +35,3 @@ private:
 } // namespace lab::frontend
 
 lab::frontend::Parser::symbol_type lab_scan_token(void* scanner);
-

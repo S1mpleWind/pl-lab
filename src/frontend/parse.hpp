@@ -30,4 +30,3 @@ std::string read_source(const std::string& path);
 std::vector<Token> tokenize(std::string path, std::string_view source);
 
 } // namespace lab::frontend
-

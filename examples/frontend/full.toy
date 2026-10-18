@@ -1,0 +1,38 @@
+// Frontend example; execution requires the later sema/IR/backend stages.
+struct Point {
+    x: int;
+    y: int;
+};
+
+def factorial(n: int) -> int {
+    if (n <= 1) {
+        return 1;
+    } elif (n == 2) {
+        return 2;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+def main() -> int {
+    var text: string = concat("hello", "\n");
+    var numbers: int[] = [1, 2, 3, 4];
+    var storage: int[] = new int[4];
+    var point: Point = Point(1, 2);
+    var flag: bool = !false && true || (1 + 2 * 3 >= 7);
+    for (var i: int = 0; i < len(numbers); i = i + 1) {
+        storage[i] = factorial(numbers[i]);
+    }
+    for (var i: int in range(0, 4)) {
+        storage[i] = storage[i] + point.x;
+    }
+    while (flag) {
+        flag = false;
+    }
+    var output: int[] = parallel map (index, value in numbers) {
+        var squared: int = value * value;
+        yield squared + index;
+    };
+    print(text);
+    return output[0];
+}

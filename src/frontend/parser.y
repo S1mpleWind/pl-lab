@@ -324,4 +324,3 @@ void lab::frontend::Parser::error(const location_type& location, const std::stri
     throw lab::DiagnosticError(location, "syntax error",
         message.compare(0, prefix.size(), prefix) == 0 ? message.substr(prefix.size()) : message);
 }
-

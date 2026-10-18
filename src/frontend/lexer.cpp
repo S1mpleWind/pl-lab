@@ -33,7 +33,8 @@ void LexerState::advance(const char* text, std::size_t size) {
 }
 
 Lexer::Lexer(std::string filename, std::string_view source) : state_(std::move(filename)) {
-    if (source.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+    // Flex adds two sentinel bytes using an int before converting to size_t.
+    if (source.size() > static_cast<std::size_t>(std::numeric_limits<int>::max() - 2))
         throw std::runtime_error("source file exceeds scanner input limit");
     if (lablex_init_extra(&state_, &scanner_) != 0)
         throw std::runtime_error("could not initialize scanner");
@@ -53,4 +54,3 @@ Lexer::~Lexer() {
 Parser::symbol_type Lexer::next() { return lab_scan_token(scanner_); }
 
 } // namespace lab::frontend
-

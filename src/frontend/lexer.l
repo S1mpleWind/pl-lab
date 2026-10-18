@@ -110,4 +110,3 @@ using lab::DiagnosticError;
     throw DiagnosticError(yyextra->token, "lexical error", message);
 }
 %%
-

@@ -26,3 +26,16 @@ add_executable(labc src/driver/main.cpp)
 target_link_libraries(labc PRIVATE lab_frontend)
 target_compile_options(labc PRIVATE -Wall -Wextra -Wpedantic)
 
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    find_package(Threads REQUIRED)
+    add_executable(frontend_api_test tests/frontend_api.cpp)
+    target_link_libraries(frontend_api_test PRIVATE lab_frontend Threads::Threads)
+    target_compile_options(frontend_api_test PRIVATE -Wall -Wextra -Wpedantic)
+    add_test(NAME frontend_api COMMAND frontend_api_test)
+    add_test(NAME frontend_cli COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/frontend_test.py"
+        --compiler $<TARGET_FILE:labc>)
+    set_tests_properties(frontend_api frontend_cli PROPERTIES TIMEOUT 60)
+endif()

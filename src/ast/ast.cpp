@@ -34,4 +34,3 @@ const char* kind_name(Kind kind) {
     throw std::logic_error("unknown AST node kind");
 }
 } // namespace lab::ast
-

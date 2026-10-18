@@ -237,4 +237,3 @@ void dump_json(std::ostream& out, const Program& program, bool locations) {
 }
 
 } // namespace lab::ast
-

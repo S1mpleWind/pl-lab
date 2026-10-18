@@ -201,4 +201,3 @@ struct Program {
 };
 
 } // namespace lab::ast
-
