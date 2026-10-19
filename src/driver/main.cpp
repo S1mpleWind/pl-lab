@@ -1,5 +1,8 @@
 #include "ast/json.hpp"
 #include "frontend/parse.hpp"
+#include "sema/check.hpp"
+#include "ir/emit.hpp"
+#include "backend/build.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -11,8 +14,8 @@
 
 namespace {
 void usage(std::ostream& out) {
-    out << "usage: labc [--dump-ast | --dump-tokens] [--no-locations] [-o FILE] SOURCE...\n"
-           "Frontend only: parse source files and emit JSON; no type checking or code generation.\n";
+    out << "usage: labc [--dump-ast | --dump-tokens | --check | --emit-llvm | --compile] [--no-locations] [-o FILE] SOURCE...\n"
+           "Default: AST JSON. --compile requires -o FILE; LAB_CLANG selects clang++.\n";
 }
 
 void position(std::ostream& out, const lab::SourcePosition& p) {
@@ -58,6 +61,7 @@ void tokens_json(std::ostream& out, const std::vector<std::string>& paths, bool 
 
 int main(int argc, char** argv) {
     try {
+        bool check_mode=false, llvm_mode=false, compile_mode=false;
         bool token_mode = false;
         bool ast_mode = false;
         bool locations = true;
@@ -68,6 +72,9 @@ int main(int argc, char** argv) {
             const std::string arg = argv[i];
             if (options && arg == "--") options = false;
             else if (options && (arg == "--help" || arg == "-h")) { usage(std::cout); return 0; }
+            else if (options && arg == "--check") check_mode = true;
+            else if (options && arg == "--emit-llvm") llvm_mode = true;
+            else if (options && arg == "--compile") compile_mode = true;
             else if (options && arg == "--dump-tokens") token_mode = true;
             else if (options && arg == "--dump-ast") ast_mode = true;
             else if (options && arg == "--no-locations") locations = false;
@@ -80,7 +87,8 @@ int main(int argc, char** argv) {
             } else paths.push_back(arg);
         }
         if (paths.empty()) { usage(std::cerr); return 2; }
-        if (ast_mode && token_mode) throw std::runtime_error("choose one dump mode");
+        if (int(ast_mode)+int(token_mode)+int(check_mode)+int(llvm_mode)+int(compile_mode)>1) throw std::runtime_error("choose one dump mode or compilation mode");
+        if(compile_mode && output.empty()) throw std::runtime_error("--compile requires -o FILE");
         if (!output.empty()) {
             const auto destination = std::filesystem::weakly_canonical(output);
             for (const auto& path : paths) {
@@ -91,10 +99,29 @@ int main(int argc, char** argv) {
             }
         }
 
+        if(compile_mode) {
+            if(std::filesystem::exists(output) && !std::filesystem::is_regular_file(output))
+                throw std::runtime_error("output is not a regular file");
+            std::filesystem::remove(output);
+        }
+
         // Buffer the complete result so a later-file error cannot leak partial JSON.
         std::ostringstream rendered;
         if (token_mode) tokens_json(rendered, paths, locations);
-        else lab::ast::dump_json(rendered, lab::frontend::parse_files(paths), locations);
+        else {
+            auto program=lab::frontend::parse_files(paths);
+            if(check_mode || llvm_mode || compile_mode) {
+                auto checked=lab::sema::check(program);
+                if(check_mode) return 0;
+                auto llvm=lab::ir::emit(program,checked);
+                if(compile_mode) {
+                    auto executable=std::filesystem::canonical("/proc/self/exe");
+                    lab::backend::build(llvm,output,executable.parent_path()/"liblab_runtime.a");
+                    return 0;
+                }
+                rendered<<llvm;
+            } else lab::ast::dump_json(rendered,program,locations);
+        }
         if (output.empty()) {
             std::cout << rendered.str();
             if (!std::cout) throw std::runtime_error("cannot write stdout");

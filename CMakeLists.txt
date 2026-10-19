@@ -22,8 +22,16 @@ add_library(lab_frontend src/frontend/lexer.cpp src/frontend/parse.cpp
 target_include_directories(lab_frontend PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(lab_frontend PUBLIC lab_ast)
 target_compile_options(lab_frontend PRIVATE -Wall -Wextra -Wpedantic)
+find_package(Threads REQUIRED)
+add_library(lab_runtime STATIC runtime/runtime.cpp)
+target_link_libraries(lab_runtime PUBLIC Threads::Threads)
+target_compile_options(lab_runtime PRIVATE -Wall -Wextra -Wpedantic)
+add_library(lab_middle src/sema/check.cpp src/ir/emit.cpp src/backend/build.cpp)
+target_link_libraries(lab_middle PUBLIC lab_ast)
+target_compile_options(lab_middle PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(labc src/driver/main.cpp)
-target_link_libraries(labc PRIVATE lab_frontend)
+target_link_libraries(labc PRIVATE lab_frontend lab_middle)
+add_dependencies(labc lab_runtime)
 target_compile_options(labc PRIVATE -Wall -Wextra -Wpedantic)
 
 include(CTest)
@@ -37,5 +45,9 @@ if(BUILD_TESTING)
     add_test(NAME frontend_cli COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/frontend_test.py"
         --compiler $<TARGET_FILE:labc>)
+    add_test(NAME native_compiler COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/compiler_test.py"
+        --compiler $<TARGET_FILE:labc>)
+    set_tests_properties(native_compiler PROPERTIES TIMEOUT 240)
     set_tests_properties(frontend_api frontend_cli PROPERTIES TIMEOUT 60)
 endif()
