@@ -236,6 +236,37 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertFalse(self.output.exists())
 
+    def test_toolchain_failure_and_source_aliases(self):
+        self.source.write_text('def main()->void{}')
+        self.output.write_bytes(b'old artifact')
+        env = dict(os.environ, LAB_CLANG='/nonexistent/lab-clang')
+        result = subprocess.run([COMPILER, '--compile', '-o', str(self.output), str(self.source)], env=env, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse(self.output.exists())
+        root = Path(__file__).resolve().parents[1]
+        for alias in ['same', 'hard', 'soft']:
+            target = self.source if alias == 'same' else self.root / alias
+            if alias == 'hard':
+                os.link(self.source, target)
+            if alias == 'soft':
+                target.symlink_to(self.source)
+            result = subprocess.run(['bash', str(root/'compile.sh'), str(self.source), str(target)], capture_output=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(self.source.read_text(), 'def main()->void{}')
+
+    def test_parallel_composite_capture_and_indirect_recursion(self):
+        self.run_program('''struct P { a:int[]; }
+            def recurse(n:int)->int{if(n<=0){return 0;}return recurse(n-1)+1;}
+            def main()->void{var p:P=P([3]);var input:int[]=[1,2,3];
+              var result:int[]=parallel map(i,x in input){var q:P=p;q.a[0]=x;yield q.a[0]+recurse(4);};
+              for(var v:int in result){print(string(v));}print(string(p.a[0]));}''', b'5673', threads='4')
+        self.reject('''struct P { a:int[]; }
+            def main()->void{var p:P=P([3]);var input:int[]=[1];
+              var result:int[]=parallel map(i,x in input){p.a[0]=2;yield x;};}''', 'read-only')
+        self.reject('''def f(n:int)->int{if(n<=0){print("bad");return 0;}return g(n-1);}
+            def g(n:int)->int{return f(n);}
+            def main()->void{var a:int[]=[1];var b:int[]=parallel map(i,x in a){yield g(x);};}''', 'may perform I/O')
+
     def test_non_ascii_input(self):
         result = self.compile('def main()->void{read_char();}')
         self.assertEqual(result.returncode, 0, result.stderr.decode())

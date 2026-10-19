@@ -37,6 +37,8 @@ LAB_THREADS=4 bash run.sh out/core
 
 ```bash
 bash tests/in-image.sh
+# 另跑课程提交接口、自声明功能及并行计时探针：
+LAB_SUBMISSION_TESTS=1 bash tests/in-image.sh
 ```
 
 脚本首次使用 `materials/Dockerfile` 构建 `compilerlab-frontend:test`，传入干净源码，在镜像中安装前端依赖、重新构建并运行 CTest。不会挂载或执行本地编译产物。
