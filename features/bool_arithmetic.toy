@@ -1,0 +1,1 @@
+def main() -> void { var x: int = true + 1; }
