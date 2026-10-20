@@ -1,4 +1,7 @@
 #include "ir/emit.hpp"
+#include <charconv>
+#include <cstdint>
+#include <cstring>
 #include <iomanip>
 #include <map>
 #include <sstream>
@@ -49,6 +52,7 @@ struct Function {
     std::string literal(const std::string &);
     std::string zero(Type);
     std::string expr(const Expr &);
+    std::string raw(const Expr &);
     void stmt(const Stmt &);
     void body(const BlockStmt &b) {
         for (auto &s : b.statements) {
@@ -135,11 +139,23 @@ std::pair<std::string, std::string> Function::address(const Expr &e) {
     return {b, std::to_string(index)};
 }
 std::string Function::expr(const Expr &e) {
+    auto value = raw(e);
+    return module.checked.promotions.count(&e) ? call("lab_int_to_float", {value}) : value;
+}
+std::string Function::raw(const Expr &e) {
     switch (e.kind) {
     case Kind::Integer: {
         auto v = static_cast<const IntegerExpr &>(e).magnitude;
         auto p = v.find_first_not_of('0');
         return p == std::string::npos ? "0" : v.substr(p);
+    }
+    case Kind::Float: {
+        const auto &s = static_cast<const FloatExpr &>(e).literal;
+        double value = 0;
+        std::from_chars(s.data(), s.data() + s.size(), value);
+        std::int64_t bits;
+        std::memcpy(&bits, &value, sizeof(bits));
+        return std::to_string(bits);
     }
     case Kind::Boolean:
         return static_cast<const BooleanExpr &>(e).value ? "1" : "0";
@@ -157,7 +173,7 @@ std::string Function::expr(const Expr &e) {
         }
         auto v = expr(*u.operand);
         if (u.op == "-")
-            return call("lab_int_neg", {v});
+            return call(module.type(e).name == "float" ? "lab_float_neg" : "lab_int_neg", {v});
         if (u.op == "!")
             return assign("xor i64 " + v + ", 1");
         return v;
@@ -186,6 +202,12 @@ std::string Function::expr(const Expr &e) {
                           " ], [ " + right + ", %" + right_end + " ]");
         }
         auto right = expr(*b.right);
+        if (module.type(*b.left).name == "float" || module.type(*b.right).name == "float") {
+            const std::map<std::string, std::string> ops = {
+                {"+", "0"},  {"-", "1"}, {"*", "2"},  {"/", "3"}, {"==", "4"},
+                {"!=", "5"}, {"<", "6"}, {"<=", "7"}, {">", "8"}, {">=", "9"}};
+            return call("lab_float_op", {ops.at(b.op), left, right});
+        }
         std::map<std::string, std::string> ops = {
             {"+", "0"}, {"-", "1"}, {"*", "2"}, {"/", "3"}, {"%", "4"}};
         if (ops.count(b.op))
@@ -205,6 +227,10 @@ std::string Function::expr(const Expr &e) {
         auto from = module.type(*c.value), to = module.type(e);
         if (from == to)
             return v;
+        if (to.name == "float")
+            return call(from.name == "int" ? "lab_int_to_float" : "lab_string_to_float", {v});
+        if (from.name == "float")
+            return call(to.name == "int" ? "lab_float_to_int" : "lab_float_to_string", {v});
         if (to.name == "int")
             return call("lab_to_int", {v});
         return call("lab_to_string", {v, from.name == "bool" ? "1" : "0"});
@@ -423,12 +449,29 @@ std::string emit(const Program &, const sema::Checked &checked) {
     out << "; CompilerLab checked AST -> LLVM IR. Runtime values use the i64 ABI.\n";
     out << "declare i64 @lab_string(i8*, i64)\ndeclare i64 @lab_parallel(i64, i64, i64 (i64, i64, "
            "i64)*, i64)\n";
-    const std::map<std::string, int> runtime = {
-        {"lab_int_neg", 1},   {"lab_int_op", 3}, {"lab_concat", 2}, {"lab_equal", 2},
-        {"lab_substr", 3},    {"lab_strlen", 1}, {"lab_print", 1},  {"lab_read_char", 0},
-        {"lab_to_string", 2}, {"lab_to_int", 1}, {"lab_object", 1}, {"lab_clone", 1},
-        {"lab_get", 2},       {"lab_set", 4},    {"lab_length", 1}, {"lab_array", 3},
-        {"lab_range", 3}};
+    const std::map<std::string, int> runtime = {{"lab_int_neg", 1},
+                                                {"lab_int_op", 3},
+                                                {"lab_concat", 2},
+                                                {"lab_equal", 2},
+                                                {"lab_substr", 3},
+                                                {"lab_strlen", 1},
+                                                {"lab_print", 1},
+                                                {"lab_read_char", 0},
+                                                {"lab_to_string", 2},
+                                                {"lab_to_int", 1},
+                                                {"lab_object", 1},
+                                                {"lab_clone", 1},
+                                                {"lab_get", 2},
+                                                {"lab_set", 4},
+                                                {"lab_length", 1},
+                                                {"lab_array", 3},
+                                                {"lab_range", 3},
+                                                {"lab_int_to_float", 1},
+                                                {"lab_float_to_int", 1},
+                                                {"lab_float_neg", 1},
+                                                {"lab_float_op", 3},
+                                                {"lab_float_to_string", 1},
+                                                {"lab_string_to_float", 1}};
     for (auto &f : runtime) {
         out << "declare i64 @" << f.first << '(';
         for (int i = 0; i < f.second; ++i) {

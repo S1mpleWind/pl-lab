@@ -9,7 +9,7 @@
 namespace lab::ast {
 
 enum class Kind {
-    Integer, String, Boolean, Name, Unary, Binary, Call, Cast, Index, Member,
+    Integer, Float, String, Boolean, Name, Unary, Binary, Call, Cast, Index, Member,
     Array, NewArray, ParallelMap, Block, Variable, Assignment, Expression,
     If, While, For, RangeFor, Return, Empty, Function, Struct
 };
@@ -45,6 +45,10 @@ struct IntegerExpr final : Expr {
     explicit IntegerExpr(SourceSpan span) : Expr(Kind::Integer, std::move(span)) {}
     // Preserve magnitude so unary '-' can represent INT64_MIN; sema checks range.
     std::string magnitude;
+};
+struct FloatExpr final : Expr {
+    explicit FloatExpr(SourceSpan span) : Expr(Kind::Float, std::move(span)) {}
+    std::string literal; // Preserve decimal spelling; sema validates binary64 range.
 };
 struct StringExpr final : Expr {
     explicit StringExpr(SourceSpan span) : Expr(Kind::String, std::move(span)) {}

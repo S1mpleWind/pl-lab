@@ -166,7 +166,7 @@ class CompilerTests(unittest.TestCase):
                 self.runtime_error('var a:int[]=[];var b:int[]=parallel map(i,x in a){yield x;};', 'LAB_THREADS', threads)
 
     def test_types_and_names(self):
-        bodies = [('var a:bool=1;', 'expected bool'), ('var a:int=true+1;', 'expected'),
+        bodies = [('var a:bool=1;', 'expected bool'), ('var a:int=true+1;', 'arithmetic'),
                   ('var a:int=int(true);', 'unsupported explicit conversion'),
                   ('if(1){}', 'expected bool'), ('missing();', 'unknown function'),
                   ('var a:int=2;var a:int=3;', 'duplicate local'),
@@ -310,6 +310,91 @@ class CompilerTests(unittest.TestCase):
                               extra='def f(n:int)->int;def main()->void{}')
         self.assertEqual(result.returncode, 1)
         self.assertIn(b'preceding prototype', result.stderr)
+
+    def test_float_arithmetic_assignment_and_comparison(self):
+        self.run_program('''def main()->void{
+            var a:float=2;var b:float=1.5;a=a+b;
+            print(string(a));print(" ");print(string(2+b*2));print(" ");
+            print(string(-b));print(" ");print(string(+b));print(" ");
+            print(string(a/2));print(" ");print(string(a-1));print(" ");
+            print(string(1e2));print(" ");print(string(1.25e-1));
+            print(string(a==3.5));print(string(a!=b));print(string(a>b));
+            print(string(a>=b));print(string(b<a));print(string(b<=a));
+        }''', b'3.5 5 -1.5 1.5 1.75 2.5 100 0.125truetruetruetruetruetrue')
+
+    def test_float_values_functions_and_parallel(self):
+        source = '''struct P { value:float; }
+            def half(x:float)->float{return x/2;}
+            def recur(x:float,n:int)->float;
+            def recur(x:float,n:int)->float{if(n==0){return x;}return recur(x+0.5,n-1);}
+            def main()->void{
+              var a:float[]=[1,2.5];a[0]=3;
+              var p:P=P(half(a[1]));p.value=2;
+              var empty:float[]=new float[1];print(string(empty[0]));
+              print(string(recur(p.value,2)));
+              var out:float[]=parallel map(i,x in a){yield x+0.25;};
+              for(var x:float in out){print(" ");print(string(x));}
+              var widened:float[]=parallel map(i,x in range(2)){yield x;};
+              for(var x:float in widened){print(" ");print(string(x));}
+            }'''
+        for threads in ['1','2','4']:
+            self.run_program(source,b'03 3.25 2.75 0 1',threads=threads)
+
+    def test_float_explicit_conversions(self):
+        self.run_program('''def main()->void{
+            print(string(float(3)));print(" ");print(string(int(-3.9)));
+            print(" ");print(string(float("1.25e2")));
+            print(" ");print(string(int(float(-9223372036854775808))));
+            print(" ");print(string(-0.0));
+        }''', b'3 -3 125 -9223372036854775808 -0')
+
+    def test_float_static_errors(self):
+        bodies = [
+            ('var x:float=true;', 'expected float'),
+            ('var x:float=true+1.0;', 'arithmetic'),
+            ('var x:int=1.0;', 'expected int'),
+            ('var x:bool=1.0<2;', 'expected'),
+            ('var x:bool=1==1.0;', 'expected'),
+            ('var x:float=1.0%2;', 'remainder'),
+            ('var x:float=float(true);', 'unsupported explicit conversion'),
+            ('var x:bool=bool(1.0);', 'unsupported explicit conversion'),
+            ('var x:int[]=new int[1.0];', 'expected int'),
+            ('var x:int[]=[1];var y:int=x[0.0];', 'expected int'),
+            ('var x:float=1e999;', 'finite binary64'),
+            ('var x:float=1e-999;', 'finite binary64'),
+        ]
+        for body,message in bodies:
+            with self.subTest(body=body):
+                self.reject('def main()->void{'+body+'}',message)
+        self.reject('def f(x:float)->void{}def main()->void{f(1);}', 'expected float')
+        self.reject('def f()->float{return 1;}def main()->void{}', 'expected float')
+        self.reject('def f(x:int)->float;def f(x:float)->float{return x;}def main()->void{}', 'conflicting')
+
+    def test_float_runtime_errors(self):
+        for body,message in [
+            ('print(string(1.0/0.0));','float division by zero'),
+            ('print(string(1e308*10.0));','float overflow'),
+            ('print(string(int(1e30)));','float to int out of range'),
+            ('print(string(int(float(9223372036854775807))));','float to int out of range'),
+            ('print(string(float("nan")));','invalid float string'),
+            ('print(string(float("inf")));','invalid float string'),
+            ('print(string(float("1.5x")));','invalid float string'),
+        ]:
+            with self.subTest(body=body):
+                self.runtime_error(body,message)
+
+    def test_float_frontend_json(self):
+        import json
+        self.source.write_text('def main()->void{var f:float=1.25e-2;}')
+        result = subprocess.run([COMPILER,'--dump-ast',str(self.source)],capture_output=True)
+        self.assertEqual(result.returncode,0,result.stderr.decode())
+        node=json.loads(result.stdout)['files'][0]['declarations'][0]['body']['statements'][0]['initializer']
+        self.assertEqual(node['kind'],'Float')
+        self.assertEqual(node['literal'],'1.25e-2')
+        result=subprocess.run([COMPILER,'--dump-tokens',str(self.source)],capture_output=True)
+        self.assertEqual(result.returncode,0,result.stderr.decode())
+        tokens=json.loads(result.stdout)['files'][0]['tokens']
+        self.assertTrue(any(t['kind']=='float literal' and t['value']=='1.25e-2' for t in tokens))
 
     def test_non_ascii_input(self):
         result = self.compile('def main()->void{read_char();}')

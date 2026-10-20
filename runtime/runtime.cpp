@@ -1,10 +1,12 @@
 #include <algorithm>
 #include <atomic>
 #include <charconv>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <exception>
 #include <functional>
@@ -152,6 +154,79 @@ Pool &pool() {
 }
 } // namespace
 extern "C" {
+// All float values cross the ABI as their binary64 bit pattern, never as
+// a pointer or a dynamically tagged value. Sema selects the correct operation.
+I lab_float_bits(double value) {
+    if (!std::isfinite(value))
+        error("float overflow or non-finite value");
+    I bits;
+    static_assert(sizeof(bits) == sizeof(value));
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+double lab_float_value(I bits) {
+    double value;
+    std::memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+I lab_int_to_float(I value) {
+    return lab_float_bits(static_cast<double>(value));
+}
+I lab_float_to_int(I bits) {
+    double value = std::trunc(lab_float_value(bits));
+    if (!std::isfinite(value) || value < -0x1p63 || value >= 0x1p63)
+        error("float to int out of range");
+    return static_cast<I>(value);
+}
+I lab_float_neg(I bits) {
+    return lab_float_bits(-lab_float_value(bits));
+}
+I lab_float_op(I op, I left, I right) {
+    double a = lab_float_value(left), b = lab_float_value(right);
+    switch (op) {
+    case 0:
+        return lab_float_bits(a + b);
+    case 1:
+        return lab_float_bits(a - b);
+    case 2:
+        return lab_float_bits(a * b);
+    case 3:
+        if (b == 0)
+            error("float division by zero");
+        return lab_float_bits(a / b);
+    case 4:
+        return a == b;
+    case 5:
+        return a != b;
+    case 6:
+        return a < b;
+    case 7:
+        return a <= b;
+    case 8:
+        return a > b;
+    case 9:
+        return a >= b;
+    default:
+        error("invalid float operation");
+    }
+}
+I lab_float_to_string(I bits) {
+    char buffer[128];
+    auto result = std::to_chars(buffer, buffer + sizeof(buffer), lab_float_value(bits),
+                                std::chars_format::general);
+    if (result.ec != std::errc{})
+        error("cannot format float");
+    return make_string(std::string(buffer, result.ptr));
+}
+I lab_string_to_float(I handle) {
+    const auto &s = string(handle);
+    double value = 0;
+    auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+    if (s.empty() || result.ec != std::errc{} || result.ptr != s.data() + s.size() ||
+        !std::isfinite(value))
+        error("invalid float string");
+    return lab_float_bits(value);
+}
 I lab_int_neg(I a) {
     if (a == std::numeric_limits<I>::min())
         error("integer overflow");

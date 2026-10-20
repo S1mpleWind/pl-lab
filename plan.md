@@ -247,3 +247,11 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 验证结果：本地 CMake 构建通过且无编译器警告；课程依赖镜像中 CTest 3/3 通过（21 个前端 CLI 用例、前端 API、22 个原生编译测试方法），grader validate 和自声明功能评测均通过。
 - 命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。追加的跨文件顺序用例在容器构建前由源码同步，并核对 SHA-256 一致；未传入任何本地生成物。
 - 日志：`reports/recursive-prototypes.log` 与 `reports/recursive-prototypes-local-build.log`。
+
+### 2026-10-20：合并主分支与浮点支持
+
+- 按用户要求将已验证的实验分支合并到 main；合并前先补齐 float 并回归。
+- 增加 float 关键字、十进制/指数 token、Float AST、binary64 类型、有限数值检查、专用运算及显式转换。
+- 仅在算术和赋值位置提升 int → float；Bool 不参与数值运算。比较、函数标量参数和返回值需精确类型或显式转换。
+- 整理 design.md 的现有笔记，明确递归前置原型、浮点规则、定长数组及求值顺序。
+- 验证状态：本地构建通过，课程依赖镜像回归进行中。

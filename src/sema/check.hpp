@@ -12,7 +12,8 @@ struct Type {
     bool operator!=(const Type &b) const { return !(*this == b); }
     std::string str() const { return name + (array ? "[]" : ""); }
     bool composite() const {
-        return array || (name != "int" && name != "bool" && name != "string" && name != "void");
+        return array || (name != "int" && name != "float" && name != "bool" && name != "string" &&
+                         name != "void");
     }
 };
 struct Binding {
@@ -23,6 +24,7 @@ struct Binding {
 };
 struct Checked {
     std::unordered_map<const ast::Expr *, Type> types;
+    std::set<const ast::Expr *> promotions; // Checked int -> float conversions.
     std::unordered_map<const ast::Node *, int> bindings;
     std::map<int, Type> variables;
     std::map<const ast::FunctionDecl *, std::vector<int>> parameters;

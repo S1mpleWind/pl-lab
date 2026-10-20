@@ -66,6 +66,7 @@ Json node(const Node& n, bool locations) {
     span(f, n.span, locations);
     switch (n.kind) {
     case Kind::Integer: f.emplace_back("magnitude", static_cast<const IntegerExpr&>(n).magnitude); break;
+    case Kind::Float: f.emplace_back("literal", static_cast<const FloatExpr&>(n).literal); break;
     case Kind::String: f.emplace_back("value", static_cast<const StringExpr&>(n).value); break;
     case Kind::Boolean: f.emplace_back("value", static_cast<const BooleanExpr&>(n).value); break;
     case Kind::Name: f.emplace_back("name", static_cast<const NameExpr&>(n).name); break;

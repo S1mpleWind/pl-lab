@@ -134,3 +134,7 @@ build/labc --dump-ast --no-locations -o tree.json first.toy second.toy
 ## 函数原型
 
 除带代码块的函数定义外，支持 `def f(n: int) -> int;`。原型仍使用 Function AST 节点，`body` 为 null，不生成函数体代码。原型匹配和递归函数的前置原型要求由 sema 检查，详见 [semantics.md](semantics.md)。
+
+## 浮点词法与 AST
+
+`float` 是类型与显式转换关键字。浮点 token 规则为 `([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+)`，先于整数规则，遵循最长匹配。Float AST 保存原始 `literal` 字符串和源码范围；有限 binary64 范围由 sema 检查。

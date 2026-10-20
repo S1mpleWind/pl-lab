@@ -29,7 +29,7 @@ bash compile.sh features/core.toy out/core
 LAB_THREADS=4 bash run.sh out/core
 ```
 
-已实现规则见 [docs/semantics.md](docs/semantics.md)，编译链路与 ABI 见 [docs/backend.md](docs/backend.md)。首版不包含浮点类型。公开算法套件尚未提供，不能据此宣称完成课程最终验收。
+已实现规则见 [docs/semantics.md](docs/semantics.md)，编译链路与 ABI 见 [docs/backend.md](docs/backend.md)。支持 `float`、算术/赋值中的 `int → float` 提升，以及递归函数前置原型。公开算法套件尚未提供，不能据此宣称完成课程最终验收。
 
 ## 镜像测试
 

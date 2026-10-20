@@ -1,12 +1,14 @@
 #include "sema/check.hpp"
 #include <algorithm>
+#include <charconv>
+#include <cmath>
 #include <functional>
 #include <limits>
 
 namespace lab::sema {
 using namespace ast;
 namespace {
-const Type integer{"int"}, boolean{"bool"}, text{"string"}, nothing{"void"};
+const Type real{"float"}, integer{"int"}, boolean{"bool"}, text{"string"}, nothing{"void"};
 struct Checker {
     Checked out;
     std::vector<std::map<std::string, Binding>> scopes;
@@ -25,9 +27,16 @@ struct Checker {
         if (actual != expected)
             fail(n, "expected " + expected.str() + ", got " + actual.str());
     }
+    bool numeric(Type t) { return t == integer || t == real; }
+    void assignment(const Expr &e, Type actual, Type expected) {
+        if (actual == integer && expected == real)
+            out.promotions.insert(&e);
+        else
+            need(e, actual, expected);
+    }
     Type type(const TypeRef &t, bool allow_void = false) {
-        if (t.name != "int" && t.name != "bool" && t.name != "string" && t.name != "void" &&
-            !out.structures.count(t.name))
+        if (t.name != "int" && t.name != "float" && t.name != "bool" && t.name != "string" &&
+            t.name != "void" && !out.structures.count(t.name))
             fail(t.span, "unknown type: " + t.name);
         if (t.name == "void" && (!allow_void || t.array))
             fail(t.span, "void is only valid as a function return type");
@@ -62,6 +71,16 @@ struct Checker {
             result = integer;
             break;
         }
+        case Kind::Float: {
+            const auto &s = static_cast<const FloatExpr &>(e).literal;
+            double value = 0;
+            auto parsed = std::from_chars(s.data(), s.data() + s.size(), value);
+            if (parsed.ec != std::errc{} || parsed.ptr != s.data() + s.size() ||
+                !std::isfinite(value))
+                fail(e, "float literal out of finite binary64 range");
+            result = real;
+            break;
+        }
         case Kind::String:
             result = text;
             break;
@@ -88,25 +107,42 @@ struct Checker {
                     break;
                 }
             }
-            result = u.op == "!" ? boolean : integer;
-            need(e, expr(*u.operand), result);
+            auto operand = expr(*u.operand);
+            if (u.op == "!") {
+                need(e, operand, boolean);
+                result = boolean;
+            } else {
+                if (!numeric(operand))
+                    fail(e, "numeric unary operator requires int or float");
+                result = operand;
+            }
             break;
         }
         case Kind::Binary: {
             auto &b = static_cast<const BinaryExpr &>(e);
             auto a = expr(*b.left), c = expr(*b.right);
-            need(e, c, a);
             if (b.op == "&&" || b.op == "||") {
                 need(e, a, boolean);
+                need(e, c, boolean);
                 result = boolean;
             } else if (b.op == "==" || b.op == "!=") {
-                if (a != integer && a != boolean && a != text)
-                    fail(e, "equality requires int, bool or string");
+                need(e, c, a);
+                if (a != integer && a != real && a != boolean && a != text)
+                    fail(e, "equality requires int, float, bool or string");
+                result = boolean;
+            } else if (b.op == "<" || b.op == "<=" || b.op == ">" || b.op == ">=") {
+                need(e, c, a);
+                if (!numeric(a))
+                    fail(e, "numeric comparison requires int or float");
                 result = boolean;
             } else {
-                need(e, a, integer);
-                result = (b.op == "<" || b.op == "<=" || b.op == ">" || b.op == ">=") ? boolean
-                                                                                      : integer;
+                if (!numeric(a) || !numeric(c))
+                    fail(e, "arithmetic requires int or float");
+                result = a == real || c == real ? real : integer;
+                if (b.op == "%" && result == real)
+                    fail(e, "remainder requires int operands");
+                assignment(*b.left, a, result);
+                assignment(*b.right, c, result);
             }
             break;
         }
@@ -116,7 +152,9 @@ struct Checker {
             auto from = expr(*c.value);
             if (from != result &&
                 !((from == text && result == integer) || (from == integer && result == text) ||
-                  (from == boolean && result == text)))
+                  (from == boolean && result == text) ||
+                  (from == real && (result == integer || result == text)) ||
+                  (result == real && (from == integer || from == text))))
                 fail(e,
                      "unsupported explicit conversion from " + from.str() + " to " + result.str());
             break;
@@ -134,7 +172,7 @@ struct Checker {
                 fail(e, "empty array requires an expected array type");
             Type element{result.name};
             for (auto &x : a.elements)
-                need(*x, expr(*x, &element), element);
+                assignment(*x, expr(*x, &element), element);
             break;
         }
         case Kind::NewArray: {
@@ -259,6 +297,10 @@ struct Checker {
                 hint = &element;
             }
             result = expr(*m.result, hint);
+            if (hint && *hint == real && result == integer) {
+                assignment(*m.result, result, *hint);
+                result = *hint;
+            }
             if (result.array || result == nothing)
                 fail(e, "map result must be a non-void scalar or struct");
             result.array = true;
@@ -325,14 +367,14 @@ struct Checker {
             auto &v = static_cast<const VariableStmt &>(s);
             auto t = type(v.type);
             if (v.initializer)
-                need(s, expr(*v.initializer, &t), t);
+                assignment(*v.initializer, expr(*v.initializer, &t), t);
             out.bindings[&s] = declare(v.name, t, bool(v.initializer), false, v.name_span);
             break;
         }
         case Kind::Assignment: {
             auto &a = static_cast<const AssignmentStmt &>(s);
             auto t = target(*a.target, false);
-            need(s, expr(*a.value, &t), t);
+            assignment(*a.value, expr(*a.value, &t), t);
             if (a.target->kind == Kind::Name)
                 lookup(static_cast<const NameExpr &>(*a.target).name, s).initialized = true;
             break;
@@ -429,8 +471,9 @@ struct Checker {
         return false;
     }
     Checked run(const Program &p) {
-        const std::set<std::string> reserved = {"print", "read_char", "concat", "substr", "len",
-                                                "range", "int",       "bool",   "string", "void"};
+        const std::set<std::string> reserved = {"print", "read_char", "concat", "substr",
+                                                "len",   "range",     "int",    "float",
+                                                "bool",  "string",    "void"};
         std::set<std::string> names = reserved;
         std::map<std::string, std::vector<const FunctionDecl *>> declarations;
         std::map<const FunctionDecl *, std::size_t> order;

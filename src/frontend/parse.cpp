@@ -42,7 +42,7 @@ std::vector<Token> tokenize(std::string path, std::string_view source) {
         if (token.kind.size() >= 2 && token.kind.front() == '"' && token.kind.back() == '"')
             token.kind = token.kind.substr(1, token.kind.size() - 2);
         using K = Parser::symbol_kind;
-        if (symbol.kind() == K::S_IDENTIFIER || symbol.kind() == K::S_INTEGER ||
+        if (symbol.kind() == K::S_IDENTIFIER || symbol.kind() == K::S_INTEGER || symbol.kind() == K::S_FLOAT_LITERAL ||
             symbol.kind() == K::S_STRING_LITERAL) {
             token.value = symbol.value.as<std::string>();
             token.has_value = true;
