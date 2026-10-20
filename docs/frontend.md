@@ -130,3 +130,7 @@ build/labc --dump-ast --no-locations -o tree.json first.toy second.toy
 本地只构建和调试。镜像回归入口为 `bash tests/in-image.sh`；它在镜像里从源码重新生成解析器、构建程序并执行 CTest。Bison 冲突检查随构建执行；回归覆盖 AST 结构、优先级、字节转义、CRLF、诊断、多文件、CLI，以及重复/并发解析实例。
 
 运行记录见 [plan.md](../plan.md)。Docker 未运行时只能记录本地构建结果，不能据此声明镜像测试通过。
+
+## 函数原型
+
+除带代码块的函数定义外，支持 `def f(n: int) -> int;`。原型仍使用 Function AST 节点，`body` 为 null，不生成函数体代码。原型匹配和递归函数的前置原型要求由 sema 检查，详见 [semantics.md](semantics.md)。

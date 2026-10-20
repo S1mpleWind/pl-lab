@@ -56,7 +56,7 @@ class CompilerTests(unittest.TestCase):
         return result
 
     def test_recursion_multifile_and_order(self):
-        self.run_program('def main() -> int { print(string(f(6))); return 0; }', b'720',
+        self.run_program('def f(n:int)->int; def main() -> int { print(string(f(6))); return 0; }', b'720',
                          extra='def f(n: int) -> int {if(n<2){return 1;}return n*f(n-1);}')
 
     def test_int64_arithmetic_and_bool(self):
@@ -256,6 +256,7 @@ class CompilerTests(unittest.TestCase):
 
     def test_parallel_composite_capture_and_indirect_recursion(self):
         self.run_program('''struct P { a:int[]; }
+            def recurse(n:int)->int;
             def recurse(n:int)->int{if(n<=0){return 0;}return recurse(n-1)+1;}
             def main()->void{var p:P=P([3]);var input:int[]=[1,2,3];
               var result:int[]=parallel map(i,x in input){var q:P=p;q.a[0]=x;yield q.a[0]+recurse(4);};
@@ -263,9 +264,52 @@ class CompilerTests(unittest.TestCase):
         self.reject('''struct P { a:int[]; }
             def main()->void{var p:P=P([3]);var input:int[]=[1];
               var result:int[]=parallel map(i,x in input){p.a[0]=2;yield x;};}''', 'read-only')
-        self.reject('''def f(n:int)->int{if(n<=0){print("bad");return 0;}return g(n-1);}
+        self.reject('''def f(n:int)->int;def g(n:int)->int;
+            def f(n:int)->int{if(n<=0){print("bad");return 0;}return g(n-1);}
             def g(n:int)->int{return f(n);}
             def main()->void{var a:int[]=[1];var b:int[]=parallel map(i,x in a){yield g(x);};}''', 'may perform I/O')
+
+    def test_recursive_prototypes(self):
+        self.reject('def f(n:int)->int{return f(n);} def main()->void{}', 'preceding prototype')
+        self.reject('def f(n:int)->int{return f(n);} def f(n:int)->int; def main()->void{}', 'preceding prototype')
+        self.reject('def f(n:int)->int{return g(n);} def g(n:int)->int{return f(n);} def main()->void{}', 'preceding prototype')
+        self.reject('def f(n:int)->int; def f(n:int)->int{return g(n);} def g(n:int)->int{return f(n);} def main()->void{}', 'preceding prototype')
+        self.run_program('''def even(n:int)->bool; def odd(value:int)->bool;
+          def even(n:int)->bool{if(n==0){return true;}return odd(n-1);}
+          def odd(n:int)->bool{if(n==0){return false;}return even(n-1);}
+          def main()->void{print(string(even(10)));print(string(odd(10)));}''', b'truefalse')
+        # Consistent repeated prototypes are allowed; parameter names may differ.
+        self.run_program('''def f(x:int)->int; def f(y:int)->int;
+          def f(n:int)->int{if(n==0){return 1;}return f(n-1)+1;}
+          def main()->void{print(string(f(3)));}''', b'4')
+        # Only functions on a recursive cycle require a prototype.
+        self.run_program('def main()->void{print(string(f()));} def f()->int{return 7;}', b'7')
+
+    def test_prototype_errors(self):
+        cases = [
+            ('def f(n:int)->int;def f(n:bool)->int{return 0;}def main()->void{}', 'conflicting'),
+            ('def f()->int;def f()->bool{return true;}def main()->void{}', 'conflicting'),
+            ('def f()->int;def f(n:int)->int{return n;}def main()->void{}', 'conflicting'),
+            ('def f()->void;def main()->void{}', 'declared but not defined'),
+            ('def f(n:Missing)->int;def f(n:Missing)->int{return 0;}def main()->void{}', 'unknown type'),
+            ('def f(a:int,a:int)->int;def f(a:int,b:int)->int{return a;}def main()->void{}', 'duplicate parameter'),
+            ('def f()->void;struct f{}def main()->void{}', 'duplicate'),
+            ('struct f{}def f()->void;def main()->void{}', 'duplicate'),
+        ]
+        for source, diagnostic in cases:
+            with self.subTest(source=source):
+                self.reject(source, diagnostic)
+        self.source.write_text('def f(n:int)->int;')
+        result = subprocess.run([COMPILER, '--dump-ast', str(self.source)], capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        import json
+        node = json.loads(result.stdout)['files'][0]['declarations'][0]
+        self.assertIsNone(node['body'])
+        # File arguments establish declaration order across the program.
+        result = self.compile('def f(n:int)->int{return f(n);}',
+                              extra='def f(n:int)->int;def main()->void{}')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(b'preceding prototype', result.stderr)
 
     def test_non_ascii_input(self):
         result = self.compile('def main()->void{read_char();}')

@@ -432,18 +432,58 @@ struct Checker {
         const std::set<std::string> reserved = {"print", "read_char", "concat", "substr", "len",
                                                 "range", "int",       "bool",   "string", "void"};
         std::set<std::string> names = reserved;
+        std::map<std::string, std::vector<const FunctionDecl *>> declarations;
+        std::map<const FunctionDecl *, std::size_t> order;
+        std::map<std::string, std::size_t> first_prototype;
+        std::size_t ordinal = 0;
         for (auto &file : p.files)
             for (auto &d : file.declarations) {
-                std::string n = d->kind == Kind::Function
-                                    ? static_cast<const FunctionDecl &>(*d).name
-                                    : static_cast<const StructDecl &>(*d).name;
-                if (!names.insert(n).second)
-                    fail(*d, "duplicate or reserved declaration: " + n);
-                if (d->kind == Kind::Function)
-                    out.functions[n] = static_cast<const FunctionDecl *>(d.get());
-                else
-                    out.structures[n] = static_cast<const StructDecl *>(d.get());
+                if (d->kind == Kind::Function) {
+                    auto f = static_cast<const FunctionDecl *>(d.get());
+                    if (names.count(f->name) && !declarations.count(f->name))
+                        fail(*f, "duplicate or reserved declaration: " + f->name);
+                    names.insert(f->name);
+                    declarations[f->name].push_back(f);
+                    order[f] = ordinal++;
+                    if (f->body) {
+                        if (out.functions.count(f->name))
+                            fail(*f, "duplicate function definition: " + f->name);
+                        out.functions[f->name] = f;
+                    } else if (!first_prototype.count(f->name)) {
+                        first_prototype[f->name] = order[f];
+                    }
+                } else {
+                    auto s = static_cast<const StructDecl *>(d.get());
+                    if (!names.insert(s->name).second)
+                        fail(*s, "duplicate or reserved declaration: " + s->name);
+                    out.structures[s->name] = s;
+                    ++ordinal;
+                }
             }
+        // All prototypes must agree with the one definition. Parameter names
+        // are local to each declaration and are not part of the signature.
+        for (auto &entry : declarations) {
+            auto first = entry.second.front();
+            auto result = type(first->return_type, true);
+            std::vector<Type> parameters;
+            for (auto &parameter : first->parameters)
+                parameters.push_back(type(parameter.type));
+            for (auto declaration : entry.second) {
+                if (type(declaration->return_type, true) != result ||
+                    declaration->parameters.size() != parameters.size())
+                    fail(*declaration, "conflicting function declaration: " + entry.first);
+                std::set<std::string> parameter_names;
+                for (std::size_t i = 0; i < parameters.size(); ++i) {
+                    auto &parameter = declaration->parameters[i];
+                    if (type(parameter.type) != parameters[i])
+                        fail(*declaration, "conflicting function declaration: " + entry.first);
+                    if (!parameter_names.insert(parameter.name).second)
+                        fail(parameter.span, "duplicate parameter: " + parameter.name);
+                }
+            }
+            if (!out.functions.count(entry.first))
+                fail(*first, "function declared but not defined: " + entry.first);
+        }
         // By-value struct layouts must be finite, including through array elements.
         std::set<std::string> visiting, done;
         std::function<void(const std::string &)> visit = [&](const std::string &n) {
@@ -488,6 +528,25 @@ struct Checker {
             bool returns = block(*function->body);
             if (ret != nothing && !returns)
                 fail(*function, "not all paths return a value");
+        }
+        // A function is recursive if it can reach itself in the call graph.
+        // Require an explicit prototype before its definition, including for
+        // direct self-recursion (a deliberate rule stricter than C).
+        for (auto &entry : out.functions) {
+            std::set<std::string> visited;
+            std::function<bool(const std::string &)> reaches_self = [&](const std::string &name) {
+                if (!visited.insert(name).second)
+                    return false;
+                for (const auto &callee : calls[name])
+                    if (callee == entry.first || reaches_self(callee))
+                        return true;
+                return false;
+            };
+            if (reaches_self(entry.first) &&
+                (!first_prototype.count(entry.first) ||
+                 first_prototype.at(entry.first) >= order.at(entry.second)))
+                fail(*entry.second,
+                     "recursive function requires a preceding prototype: " + entry.first);
         }
         bool changed = true;
         while (changed) {

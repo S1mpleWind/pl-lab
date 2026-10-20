@@ -85,6 +85,12 @@ function_declaration:
         node->parameters = std::move($4); node->return_type = std::move($7);
         node->body = std::move($8); $$ = std::move(node);
     }
+  | "def" IDENTIFIER "(" parameters ")" "->" type ";" {
+        auto node = std::make_unique<lab::ast::FunctionDecl>(@$);
+        node->name = std::move($2); node->name_span = @2;
+        node->parameters = std::move($4); node->return_type = std::move($7);
+        $$ = std::move(node); // A null body represents a function prototype.
+    }
 ;
 parameters:
     %empty { $$ = std::vector<lab::ast::Parameter>(); }

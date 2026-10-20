@@ -237,3 +237,13 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 最终日志：`reports/middle-backend.log`；本地 CMake/GCC 11.4 构建日志：`reports/middle-backend-local-build.log`。生成日志不提交。
 - 源码格式：`.clang-format` 固定 4 空格与 100 列；格式化工具只在本地临时目录使用，不增加构建依赖。
 - 后续仅剩课程算法套件发布后的算法提交、正式 CI 及验收；首版编译器实现已贯通。
+
+### 2026-10-20：递归函数前置原型
+
+- main 仍停留在词法/语法/AST 阶段，不含类型检查。本轮仅修改 `experiment/middle-backend`，不合并 main。
+- 增加 `def f(n: int) -> int;` 函数原型；AST 用空 body 区分声明与定义。
+- 递归调用图中的每个函数（包括直接自递归）必须在定义前有一致原型；普通非递归前向调用保持原规则。
+- 检查冲突签名、重复定义、缺失定义及多文件输入顺序；重复的一致原型和不同的形参名称允许。
+- 验证结果：本地 CMake 构建通过且无编译器警告；课程依赖镜像中 CTest 3/3 通过（21 个前端 CLI 用例、前端 API、22 个原生编译测试方法），grader validate 和自声明功能评测均通过。
+- 命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。追加的跨文件顺序用例在容器构建前由源码同步，并核对 SHA-256 一致；未传入任何本地生成物。
+- 日志：`reports/recursive-prototypes.log` 与 `reports/recursive-prototypes-local-build.log`。

@@ -177,7 +177,7 @@ struct FunctionDecl final : Decl {
     SourceSpan name_span;
     std::vector<Parameter> parameters;
     TypeRef return_type;
-    std::unique_ptr<BlockStmt> body;
+    std::unique_ptr<BlockStmt> body; // Null for a function prototype ending in ';'.
 };
 struct Field {
     std::string name;
