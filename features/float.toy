@@ -1,0 +1,14 @@
+def main() -> void {
+    var base: float = 2;
+    var scale: float = base + 0.5;
+    var input: int[] = range(3);
+    var output: float[] = parallel map (i, x in input) {
+        yield x * scale;
+    };
+    for (var x: float in output) {
+        print(string(x));
+        print(" ");
+    }
+    print(string(int(scale)));
+    print("\n");
+}

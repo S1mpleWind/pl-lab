@@ -1,0 +1,31 @@
+features:
+  - id: native_core_parallel
+    title: 原生编译、递归、复合值与有序并行
+    tests:
+      - id: core
+        source: features/core.toy
+        artifact: out/core
+        kind: run
+        expect_stdout: features/core.out
+  - id: static_type_errors
+    title: 拒绝布尔数值运算
+    tests:
+      - id: bool_arithmetic
+        source: features/bool_arithmetic.toy
+        artifact: out/invalid
+        kind: compile_error
+        diagnostic_contains: "type error"
+  - id: float_arithmetic_parallel
+    title: 浮点提升、显式转换及有序并行
+    tests:
+      - id: float_values
+        source: features/float.toy
+        artifact: out/float
+        kind: run
+        expect_stdout: features/float.out
+      - id: reject_bool_float
+        source: features/bool_float.toy
+        artifact: out/bool_float
+        kind: compile_error
+        diagnostic_contains: "type error"
+algorithms: []

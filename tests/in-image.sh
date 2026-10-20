@@ -15,12 +15,16 @@ tar -C "$root" \
     --exclude='./.git' --exclude='./build' --exclude='./out' \
     --exclude='./reports' --exclude='./.deps' --exclude='__pycache__' \
     -cf - . |
-    "$docker_command" run --rm -i --user 0 --entrypoint bash "$image" -c '
+    "$docker_command" run --rm -i --user 0 -e LAB_SUBMISSION_TESTS="${LAB_SUBMISSION_TESTS:-0}" --entrypoint bash "$image" -c '
         set -euo pipefail
         mkdir -p /workspace
         cd /workspace
         tar -xf -
-        bash setup.sh
-        bash build.sh
-        ctest --test-dir build --output-on-failure
+        if [[ "$LAB_SUBMISSION_TESTS" == 1 ]]; then
+            bash tests/submission-in-image.sh
+        else
+            bash setup.sh
+            bash build.sh
+            ctest --test-dir build --output-on-failure
+        fi
     '

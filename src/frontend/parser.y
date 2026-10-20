@@ -40,11 +40,11 @@ lab::ast::ExprPtr unary(lab::SourceSpan span, std::string op, lab::ast::ExprPtr 
 }
 
 %token END 0 "end of file"
-%token <std::string> IDENTIFIER "identifier" INTEGER "integer literal" STRING_LITERAL "string literal"
+%token <std::string> IDENTIFIER "identifier" INTEGER "integer literal" FLOAT_LITERAL "float literal" STRING_LITERAL "string literal"
 %token DEF "def" VAR "var" STRUCT "struct"
 %token IF "if" ELIF "elif" ELSE "else" WHILE "while" FOR "for" RETURN "return"
 %token PARALLEL "parallel" MAP "map" IN "in" YIELD "yield" NEW "new"
-%token INT "int" BOOL "bool" STRING "string" VOID "void" TRUE "true" FALSE "false"
+%token FLOAT "float" INT "int" BOOL "bool" STRING "string" VOID "void" TRUE "true" FALSE "false"
 %token LPAREN "(" RPAREN ")" LBRACE "{" RBRACE "}" LBRACKET "[" RBRACKET "]"
 %token COLON ":" SEMICOLON ";" COMMA "," DOT "." ARROW "->"
 %token ASSIGN "=" PLUS "+" MINUS "-" STAR "*" SLASH "/" PERCENT "%"
@@ -85,6 +85,12 @@ function_declaration:
         node->parameters = std::move($4); node->return_type = std::move($7);
         node->body = std::move($8); $$ = std::move(node);
     }
+  | "def" IDENTIFIER "(" parameters ")" "->" type ";" {
+        auto node = std::make_unique<lab::ast::FunctionDecl>(@$);
+        node->name = std::move($2); node->name_span = @2;
+        node->parameters = std::move($4); node->return_type = std::move($7);
+        $$ = std::move(node); // A null body represents a function prototype.
+    }
 ;
 parameters:
     %empty { $$ = std::vector<lab::ast::Parameter>(); }
@@ -122,7 +128,8 @@ base_type:
   | IDENTIFIER { $$ = {std::move($1), false, @$}; }
 ;
 cast_type:
-    "int" { $$ = {"int", false, @$}; }
+    "float" { $$ = {"float", false, @$}; }
+  | "int" { $$ = {"int", false, @$}; }
   | "bool" { $$ = {"bool", false, @$}; }
   | "string" { $$ = {"string", false, @$}; }
 ;
@@ -268,6 +275,10 @@ primary:
     INTEGER {
         auto node = std::make_unique<lab::ast::IntegerExpr>(@$);
         node->magnitude = std::move($1); $$ = std::move(node);
+    }
+  | FLOAT_LITERAL {
+        auto node = std::make_unique<lab::ast::FloatExpr>(@$);
+        node->literal = std::move($1); $$ = std::move(node);
     }
   | STRING_LITERAL {
         auto node = std::make_unique<lab::ast::StringExpr>(@$);

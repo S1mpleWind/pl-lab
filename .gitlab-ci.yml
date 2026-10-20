@@ -1,0 +1,28 @@
+# One grading job container, created and cleaned up by GitLab Runner.
+workflow:
+  auto_cancel:
+    on_new_commit: none
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "submit"'
+    - when: never
+
+stages: [grade]
+variables:
+  GIT_STRATEGY: clone
+  GIT_DEPTH: "1"
+
+compilerlab-grade:
+  stage: grade
+  tags: [compilerlab-student]
+  interruptible: false
+  timeout: 1h
+  script:
+    - python3 /opt/compilerlab/ci/run.py
+  artifacts:
+    when: always
+    expire_in: 7 days
+    access: developer
+    paths: [reports/report.json, reports/student.json, reports/junit.xml, reports/source.tar.gz]
+    reports:
+      junit: reports/junit.xml

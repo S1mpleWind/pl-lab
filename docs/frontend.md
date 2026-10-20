@@ -4,9 +4,9 @@
 
 前端使用 C++17、Flex 2.6+、Bison 3.8+。Flex 规则见 [lexer.l](../src/frontend/lexer.l)，完整形式文法见 [parser.y](../src/frontend/parser.y)。CMake 生成 LALR(1) 分析器，并将任何 shift/reduce 或 reduce/reduce 冲突视为构建错误。
 
-前端只负责词法、语法、AST 和源码位置，不执行类型检查或生成 LLVM IR。未定义名称、参数数量、重复声明、非法赋值目标、整数范围、数组元素类型、缺少返回值、并行副作用等由后续 sema 检查。嵌套并行可以在语法树中表示，但应由 sema 按首版范围拒绝。
+前端只负责词法、语法、AST 和源码位置，不执行类型检查或生成 LLVM IR。未定义名称、参数数量、重复声明、非法赋值目标、整数范围、数组元素类型、缺少返回值、并行副作用等由独立的 sema 阶段检查。嵌套并行可以在语法树中表示，但应由 sema 按首版范围拒绝。
 
-`.toy` 是示例后缀，命令行不限制扩展名。每个文件是完整的顶层声明序列；不能把一个声明拆成多个文件。多文件解析结果按输入顺序保留，名字解析和入口检查留给后续阶段。空文件在语法上合法。
+`.toy` 是示例后缀，命令行不限制扩展名。每个文件是完整的顶层声明序列；不能把一个声明拆成多个文件。多文件解析结果按输入顺序保留，名字解析和入口检查交给 sema 阶段。空文件在语法上合法。
 
 ## 词法规则与位置
 
@@ -61,7 +61,7 @@ Flex 将正规表达式转为自动机：由规则构造 NFA、通过子集构�
                  { 语句* yield 表达式; }
 ```
 
-数组声明统一采用 `var values: int[] = [1, 2];`。类型语法只接受一维 `T[]`；`new int[n]` 表示数组创建节点，长度在运行时确定。数组和结构体的默认初始化、复制和写入规则尚需语义阶段确定。
+数组声明统一采用 `var values: int[] = [1, 2];`。类型语法只接受一维 `T[]`；`new int[n]` 表示数组创建节点，长度在运行时确定。数组和结构体的默认初始化、复制和写入规则见 [semantics.md](semantics.md)。
 
 函数必须显式写 `-> 返回类型`，无返回值使用 `void`；参数、变量和字段都显式标注类型。`void` 是否处于合法位置由 sema 检查。顶层只接收函数和结构体，`design.md` 中的语句片段需要放入函数体。
 
@@ -99,7 +99,7 @@ var output: int[] = parallel map (i, x in input) {
 
 `ParallelMapExpr` 包含下标名、元素名、输入表达式、普通语句代码块及独立的结果表达式。末尾 `yield` 被提取为 `result`，并保留 `yield_span`；它不是普通语句，不能出现在其他代码块中。
 
-文法要求恰好一条末尾 `yield`。输入只求值一次、有序结果、空输入、捕获只读、禁止外部写入/输入输出、返回路径和错误行为均需要后续 sema/IR/runtime 实现；当前 AST 不代表这些能力已经完成。
+文法要求恰好一条末尾 `yield`。输入只求值一次、有序结果、空输入、捕获只读、禁止外部写入/输入输出、返回路径和错误行为由独立的 sema/IR/runtime 阶段实现；单独导出 AST 不会执行这些检查。实现说明见 [backend.md](backend.md)。
 
 ## AST 所有权与接口
 
@@ -119,7 +119,7 @@ build/labc --dump-tokens examples/frontend/full.toy
 build/labc --dump-ast --no-locations -o tree.json first.toy second.toy
 ```
 
-默认模式为 `--dump-ast`，两个模式不能同时选择。`--` 可结束选项解析。AST JSON 包含 `kind`、节点数据及可选 `span`；整数字面量使用字符串 `magnitude`，ASCII NUL 导出为合法 JSON 转义。token JSON 包含类别、字面值（如有）和源码范围，包括 EOF。
+默认模式为 `--dump-ast`，两个调试导出模式不能同时选择。完整编译模式见 [backend.md](backend.md)。`--` 可结束选项解析。AST JSON 包含 `kind`、节点数据及可选 `span`；整数字面量使用字符串 `magnitude`，ASCII NUL 导出为合法 JSON 转义。token JSON 包含类别、字面值（如有）和源码范围，包括 EOF。
 
 任意一个文件发生错误时，不输出部分 JSON。输出文件只在所有文件成功处理后打开；禁止覆盖源文件及其符号链接/硬链接别名。已有输出文件不会在词法/语法失败时被改写。
 
@@ -130,3 +130,11 @@ build/labc --dump-ast --no-locations -o tree.json first.toy second.toy
 本地只构建和调试。镜像回归入口为 `bash tests/in-image.sh`；它在镜像里从源码重新生成解析器、构建程序并执行 CTest。Bison 冲突检查随构建执行；回归覆盖 AST 结构、优先级、字节转义、CRLF、诊断、多文件、CLI，以及重复/并发解析实例。
 
 运行记录见 [plan.md](../plan.md)。Docker 未运行时只能记录本地构建结果，不能据此声明镜像测试通过。
+
+## 函数原型
+
+除带代码块的函数定义外，支持 `def f(n: int) -> int;`。原型仍使用 Function AST 节点，`body` 为 null，不生成函数体代码。原型匹配和递归函数的前置原型要求由 sema 检查，详见 [semantics.md](semantics.md)。
+
+## 浮点词法与 AST
+
+`float` 是类型与显式转换关键字。浮点 token 规则为 `([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+)`，先于整数规则，遵循最长匹配。Float AST 保存原始 `literal` 字符串和源码范围；有限 binary64 范围由 sema 检查。

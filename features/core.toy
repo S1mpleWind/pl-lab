@@ -1,0 +1,21 @@
+struct Pair { left: int; right: string; }
+def factorial(n: int) -> int;
+def factorial(n: int) -> int {
+    if (n <= 1) { return 1; }
+    return n * factorial(n - 1);
+}
+def main() -> int {
+    var p: Pair = Pair(factorial(6), "ok");
+    var a: int[] = range(5);
+    var result: int[] = parallel map (i, x in a) {
+        var local: int = x * x;
+        yield local + i;
+    };
+    for (var i: int in range(len(result))) {
+        print(string(result[i]));
+        print(" ");
+    }
+    print(concat(p.right, concat(" ", string(p.left))));
+    print("\n");
+    return 0;
+}

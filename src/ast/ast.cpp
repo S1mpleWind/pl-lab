@@ -6,6 +6,7 @@ namespace lab::ast {
 const char* kind_name(Kind kind) {
     switch (kind) {
     case Kind::Integer: return "Integer";
+    case Kind::Float: return "Float";
     case Kind::String: return "String";
     case Kind::Boolean: return "Boolean";
     case Kind::Name: return "Name";

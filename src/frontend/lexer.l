@@ -64,6 +64,7 @@ using lab::DiagnosticError;
 "in"                 { return Parser::make_IN(yyextra->token); }
 "yield"              { return Parser::make_YIELD(yyextra->token); }
 "new"                { return Parser::make_NEW(yyextra->token); }
+"float"              { return Parser::make_FLOAT(yyextra->token); }
 "int"                { return Parser::make_INT(yyextra->token); }
 "bool"               { return Parser::make_BOOL(yyextra->token); }
 "string"             { return Parser::make_STRING(yyextra->token); }
@@ -72,6 +73,9 @@ using lab::DiagnosticError;
 "false"              { return Parser::make_FALSE(yyextra->token); }
 
 [A-Za-z_][A-Za-z0-9_]* { return Parser::make_IDENTIFIER(std::string(yytext, yyleng), yyextra->token); }
+([0-9]+\.[0-9]+([eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+) {
+    return Parser::make_FLOAT_LITERAL(std::string(yytext, yyleng), yyextra->token);
+}
 [0-9]+               { return Parser::make_INTEGER(std::string(yytext, yyleng), yyextra->token); }
 
 "->"                 { return Parser::make_ARROW(yyextra->token); }
