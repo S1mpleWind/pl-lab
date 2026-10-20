@@ -1,6 +1,6 @@
 # CompilerLab
 
-课程编译器项目，实验分支已接入 C++17 的 Flex/Bison 前端、静态语义分析、LLVM IR、原生 ELF 后端及有序并行运行时。语言设计见 [design.md](design.md)，阶段安排见 [plan.md](plan.md)，已落地文法与接口见 [docs/frontend.md](docs/frontend.md)。
+课程编译器项目，当前已接入 C++17 的 Flex/Bison 前端、静态语义分析、LLVM IR、原生 ELF 后端及有序并行运行时。语言设计见 [design.md](design.md)，阶段安排见 [plan.md](plan.md)，已落地文法与接口见 [docs/frontend.md](docs/frontend.md)。
 
 ## 本地开发
 

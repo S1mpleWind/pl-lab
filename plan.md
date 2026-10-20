@@ -1,6 +1,6 @@
 # 开发计划
 
-> 状态：实验分支已贯通静态语义、LLVM IR、原生 ELF 与有序并行运行时；镜像回归通过。课程公开算法与最终验收仍待发布套件。
+> 状态：已贯通静态语义、LLVM IR、原生 ELF 与有序并行运行时；镜像回归通过。课程公开算法与最终验收仍待发布套件。
 >
 > 开发方式：本地编写、构建和调试；阶段回归与验收测试在课程镜像中进行。
 
@@ -254,4 +254,7 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 增加 float 关键字、十进制/指数 token、Float AST、binary64 类型、有限数值检查、专用运算及显式转换。
 - 仅在算术和赋值位置提升 int → float；Bool 不参与数值运算。比较、函数标量参数和返回值需精确类型或显式转换。
 - 整理 design.md 的现有笔记，明确递归前置原型、浮点规则、定长数组及求值顺序。
-- 验证状态：本地构建通过，课程依赖镜像回归进行中。
+- 验证完成：本地构建通过且无编译器警告；最终镜像 CTest 3/3 通过，包含 21 个前端 CLI 用例、前端 API、28 个原生编译测试方法。新增浮点范围、隐式提升、显式转换、复合值和 1/2/4 线程用例全部通过。
+- 新增 `features/float.toy`、Bool 浮点运算反例及课程 YAML 声明；grader validate 和全部自声明功能评测通过。公开算法仍未发布，不代表课程最终算法验收。
+- 验证命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`；日志：`reports/float-and-merge.log`、`reports/float-local-build.log`。
+- Git：浮点实现提交 `b44056e`；随后保存提交接口及验证记录，并将实验分支合并至 main、推送 GitHub。

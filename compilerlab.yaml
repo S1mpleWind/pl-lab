@@ -15,4 +15,17 @@ features:
         artifact: out/invalid
         kind: compile_error
         diagnostic_contains: "type error"
+  - id: float_arithmetic_parallel
+    title: 浮点提升、显式转换及有序并行
+    tests:
+      - id: float_values
+        source: features/float.toy
+        artifact: out/float
+        kind: run
+        expect_stdout: features/float.out
+      - id: reject_bool_float
+        source: features/bool_float.toy
+        artifact: out/bool_float
+        kind: compile_error
+        diagnostic_contains: "type error"
 algorithms: []

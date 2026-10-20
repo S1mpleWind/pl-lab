@@ -4,8 +4,8 @@
 
 | 要求 | 实现 | 回归入口 |
 | --- | --- | --- |
-| 静态类型、明确转换（3–5 页） | `src/sema/check.cpp`、`docs/semantics.md` | types_and_names、initialization_and_returns |
-| int64、ASCII 字符串、bool（6–8 页） | `runtime/runtime.cpp`、`src/ir/emit.cpp` | int64_arithmetic_and_bool、strings_and_input、runtime_boundaries |
+| 静态类型、明确转换（3–5 页），增加 float 扩展 | `src/sema/check.cpp`、`docs/semantics.md` | types_and_names、initialization_and_returns、float_static_errors |
+| int64、ASCII 字符串、bool（6–8 页），附加 binary64 float | `runtime/runtime.cpp`、`src/ir/emit.cpp` | int64_arithmetic_and_bool、strings_and_input、runtime_boundaries |
 | 从左到右与短路 | LLVM 分支、phi 与顺序发出调用 | short_circuit、order_and_value_semantics |
 | 初始化及至少三层词法作用域 | 作用域栈、分支初始化状态合并 | scopes_and_control_flow、initialization_and_returns |
 | 分支、运行时循环、函数及直接递归 | LLVM 基本块、函数与调用 | recursion_multifile_and_order、scopes_and_control_flow |
