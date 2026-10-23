@@ -34,6 +34,7 @@ struct TypeRef {
 struct Expr : Node { using Node::Node; };
 struct Stmt : Node { using Node::Node; };
 struct Decl : Node { using Node::Node; };
+// unique_ptr 表示树形独占所有权；语义旁表只借用节点地址，不负责释放。
 using ExprPtr = std::unique_ptr<Expr>;
 using StmtPtr = std::unique_ptr<Stmt>;
 using DeclPtr = std::unique_ptr<Decl>;

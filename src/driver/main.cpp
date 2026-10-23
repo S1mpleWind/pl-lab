@@ -132,6 +132,7 @@ int main(int argc, char **argv) {
         if (token_mode)
             tokens_json(rendered, paths, locations);
         else {
+            // Program 必须存活到 sema 和 IR 都结束，Checked 内保存借用的 AST 地址。
             auto program = lab::frontend::parse_files(paths);
             if (check_mode || llvm_mode || compile_mode) {
                 auto checked = lab::sema::check(program);

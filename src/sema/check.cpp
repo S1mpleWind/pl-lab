@@ -9,6 +9,8 @@ namespace lab::sema {
 using namespace ast;
 namespace {
 const Type real{"float"}, integer{"int"}, boolean{"bool"}, text{"string"}, nothing{"void"};
+// 语法树只记录结构；此遍历补充类型、变量编号与调用关系，不执行源程序。
+// scopes 的末尾是最内层作用域；复制状态用于控制流和并行捕获检查。
 struct Checker {
     Checked out;
     std::vector<std::map<std::string, Binding>> scopes;
@@ -28,6 +30,8 @@ struct Checker {
             fail(n, "expected " + expected.str() + ", got " + actual.str());
     }
     bool numeric(Type t) { return t == integer || t == real; }
+    // need 要求精确类型；仅在明确允许的赋值/算术位置调用 assignment。
+    // 保留原始表达式类型，另记提升位置，IR 才能生成真正的数值转换。
     void assignment(const Expr &e, Type actual, Type expected) {
         if (actual == integer && expected == real)
             out.promotions.insert(&e);
@@ -274,6 +278,8 @@ struct Checker {
             Type input = expr(*m.input);
             if (!input.array)
                 fail(e, "parallel map input must be an array");
+            // 暂时将外层绑定设为只读；本次迭代的新作用域仍可声明可变 var。
+            // 离开 map 后恢复，不能让只读属性泄漏到普通后续语句。
             auto saved = scopes;
             std::vector<int> captures;
             for (auto &scope : scopes)
@@ -413,6 +419,8 @@ struct Checker {
                 all = false;
                 continuing.push_back(before);
             }
+            // 初始化是“所有可继续执行的分支均已赋值”的交集。
+            // 已 return 的分支不参与，因为它不会到达后面的读取。
             scopes = before;
             for (std::size_t k = 0; k < scopes.size(); ++k)
                 for (auto &p : scopes[k]) {
@@ -591,6 +599,8 @@ struct Checker {
                 fail(*entry.second,
                      "recursive function requires a preceding prototype: " + entry.first);
         }
+        // 调用图上的副作用求不动点：被调用者有 I/O/并行，调用者也继承。
+        // 因此递归和多层辅助函数不能绕开并行体限制。
         bool changed = true;
         while (changed) {
             changed = false;

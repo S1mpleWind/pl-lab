@@ -11,6 +11,7 @@ void lab_delete_buffer(yy_buffer_state*, void*);
 
 namespace lab::frontend {
 
+// 列与 offset 按字节计数；CRLF 作为一个换行，但 offset 仍增加两字节。
 void LexerState::advance(const char* text, std::size_t size) {
     token.begin = position;
     for (std::size_t i = 0; i < size; ++i) {

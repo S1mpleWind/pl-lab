@@ -2,9 +2,13 @@
 
 课程编译器项目，当前已接入 C++17 的 Flex/Bison 前端、静态语义分析、LLVM IR、原生 ELF 后端及有序并行运行时。语言设计见 [design.md](design.md)，阶段安排见 [plan.md](plan.md)，已落地文法与接口见 [docs/frontend.md](docs/frontend.md)。
 
+## 从哪里开始读
+
+完整阅读路线见 [docs/README.md](docs/README.md)。建议先看[上手与调试](docs/getting-started.md)，运行[带注释的导读程序](examples/tutorial/walkthrough.toy)，再读[逐阶段导读](docs/walkthrough.md)和[架构导航](docs/architecture.md)。
+
 ## 本地开发
 
-本地需要 C++17 编译器、CMake >= 3.16、Flex >= 2.6、Bison >= 3.8 、m4 和 Clang。Python 3 用于镜像中的回归测试。
+本地需要 C++17 编译器、CMake >= 3.16、Flex >= 2.6、Bison >= 3.8、m4 和 Clang。Python 3 用于镜像中的回归测试。
 
 ```bash
 # Ubuntu 上首次准备本地依赖，按需执行：
@@ -49,7 +53,6 @@ LAB_SUBMISSION_TESTS=1 bash tests/in-image.sh
 
 - `frontend_cli`：Python 标准库回归测试，检查 AST 结构、优先级、转义、诊断、多文件和命令行行为。
 - `frontend_api`：C++ API 测试，检查重复解析、错误后重新解析及并发独立 scanner/parser 实例。
-
 - `native_compiler`：语义反例、真实 ELF、运行时边界与不同线程数的有序并行回归。
 
 ## 代码组织

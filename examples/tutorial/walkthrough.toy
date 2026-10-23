@@ -1,0 +1,27 @@
+// 结构体按值传递；字段类型在编译期确定。
+struct Result { total: int; scaled: float; }
+
+// 本语言要求递归函数先声明原型，再提供唯一的定义。
+def factorial(n: int) -> int;
+def factorial(n: int) -> int {
+    if (n <= 1) { return 1; }
+    return n * factorial(n - 1);
+}
+
+def main() -> void {
+    var input: int[] = range(1, 5);
+    var factor: float = 0.5;
+    // factor 和 input 在 map 内只读；每次迭代独立产生一个有序结果。
+    var output: float[] = parallel map (i, x in input) {
+        var local: int = x * x;
+        yield local * factor; // 仅算术中将 int 提升为 float。
+    };
+    var sum: int = 0;
+    for (var x: int in input) { sum = sum + x; }
+    var result: Result = Result(sum, output[3]);
+    // print 只接受 string，转换必须写出来，不会自动追加换行。
+    print(concat("sum=", string(result.total)));
+    print(concat(" scaled=", string(result.scaled)));
+    print(concat(" factorial=", string(factorial(5))));
+    print("\n");
+}

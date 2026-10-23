@@ -11,6 +11,8 @@ using namespace ast;
 using sema::Type;
 namespace {
 struct Module;
+// 每个函数单独维护 SSA 临时编号和基本块终结状态。
+// terminated 防止 return 后继续写指令，或在同一基本块生成两个终结指令。
 struct Function {
     Module &module;
     std::ostringstream code;
@@ -69,6 +71,7 @@ struct Module {
     int string_count = 0, map_count = 0;
     explicit Module(const sema::Checked &c) : checked(c) {}
     Type type(const Expr &e) const { return checked.types.at(&e); }
+    // 将并行体提升为普通 LLVM 函数。环境只借用到同步 map 返回，不能逃逸。
     std::string callback(const ParallelMapExpr &m) {
         auto name = "map_" + std::to_string(map_count++);
         Function f(*this);
@@ -138,6 +141,8 @@ std::pair<std::string, std::string> Function::address(const Expr &e) {
         ++index;
     return {b, std::to_string(index)};
 }
+// 所有表达式出口都经过这里，确保变量初始化、数组元素和 yield 同样执行提升。
+// ABI 中 float 是位模式；int -> float 必须数值转换，不能直接重解释整数位。
 std::string Function::expr(const Expr &e) {
     auto value = raw(e);
     return module.checked.promotions.count(&e) ? call("lab_int_to_float", {value}) : value;
@@ -181,6 +186,7 @@ std::string Function::raw(const Expr &e) {
     case Kind::Binary: {
         auto &b = static_cast<const BinaryExpr &>(e);
         auto left = expr(*b.left);
+        // 右操作数位于独立基本块，不能先求值再用 and/or；phi 合并实际执行的路径。
         if (b.op == "&&" || b.op == "||") {
             auto rhs = label(), short_path = label(), merge = label();
             auto test = assign("icmp ne i64 " + left + ", 0");

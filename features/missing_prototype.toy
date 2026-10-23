@@ -1,0 +1,2 @@
+def recur(n: int) -> int { return recur(n); }
+def main() -> void {}

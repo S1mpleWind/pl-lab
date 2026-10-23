@@ -174,12 +174,12 @@ docs/               # 文法、词法规则、ABI 和实现说明
 
 ### P8：提交集成和验收整理
 
-- [ ] 完善 `compilerlab.yaml`，将各功能的正例、反例和边界用例纳入声明。
+- [x] 完善 `compilerlab.yaml` 的正反例声明；协议不能表达的运行时错误边界放入内部回归。
 - [ ] 按已发布题目实现算法，使用课程套件在镜像中测试。
 - [x] 从模板复制课程规定的 `.gitlab-ci.yml`，保持其内容符合课程要求。
 - [x] 检查编译脚本参数、输出路径、退出码、多文件输入和过期产物清理。
 - [ ] 在课程镜像中完整运行 setup、build、compile、run 和 grader，记录报告。
-- [ ] 补齐语言规范、正规表达式与自动机构造说明、形式文法、AST/类型检查、运行时和线程池设计说明。
+- [x] 补齐语言规范、正规表达式与自动机构造说明、形式文法、AST/类型检查、运行时和线程池设计说明。
 - [ ] 逐项对照 PDF：基础必做能力完整，只以确定性并行作为选做任务验收。
 
 完成标准：提交接口验证通过；全部已发布的必做算法与自声明功能测试通过；报告和文档可复现。未发布的测试项明确记录为待确认。
@@ -258,3 +258,14 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 新增 `features/float.toy`、Bool 浮点运算反例及课程 YAML 声明；grader validate 和全部自声明功能评测通过。公开算法仍未发布，不代表课程最终算法验收。
 - 验证命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`；日志：`reports/float-and-merge.log`、`reports/float-local-build.log`。
 - Git：浮点实现提交 `b44056e`；随后保存提交接口及验证记录，并将实验分支合并至 main、推送 GitHub。
+
+### 2026-10-23：阅读文档、代码注释与验收功能补充
+
+- 建立 docs 阅读入口、上手指南、架构导航、逐阶段导读和开发/测试指南，并加入带源码注释的 walkthrough 示例。
+- 为 AST 所有权、语义旁表、初始化分支合并、转换、调用图副作用、IR 短路、后端发布和线程池生命周期添加解释性注释。
+- 修复 map 完成通知的生命周期竞态：剩余计数减为零和 notify 必须处于同一把锁保护下，避免调用线程先销毁栈上条件变量。增加 1/2/4 线程连续小任务回归。
+- 扩大课程功能声明：作用域与控制流、ASCII 输入/EOF/字符串、深复制、导读程序及静态反例。公开算法 suite 仍为空，未补造课程算法。
+- 验证完成：本地 CMake 构建通过且无编译器警告；镜像 CTest 3/3 通过，包括前端 API、21 个前端 CLI 用例和 29 个原生编译测试方法。新增连续小 map 在 1/2/4 线程下通过。
+- grader validate 及 11 个自声明用例全部通过，包含带注释的导读程序；文档内相对链接目标均存在。最后追加的构建/词法/文法注释通过本地重新生成及构建。
+- 命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。日志保存在 `reports/documentation-and-features.log` 和 `reports/documentation-local-build.log`（不提交生成文件）。
+- 待完成：公开算法源程序、课程正式 suite/CI 与最终验收；当前文档和功能回归不替代这些步骤。

@@ -9,6 +9,7 @@
 
 #define YY_DECL lab::frontend::Parser::symbol_type lab_scan_token(yyscan_t yyscanner)
 #define YY_USER_ACTION yyextra->advance(yytext, static_cast<std::size_t>(yyleng));
+// Flex 按最长匹配取 token；长度相同才按规则先后选择，故关键字放在标识符前。
 using Parser = lab::frontend::Parser;
 using lab::DiagnosticError;
 %}

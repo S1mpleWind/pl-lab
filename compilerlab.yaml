@@ -28,4 +28,55 @@ features:
         artifact: out/bool_float
         kind: compile_error
         diagnostic_contains: "type error"
+  - id: scopes_control
+    title: 作用域、初始化与控制流
+    tests:
+      - id: run
+        source: features/scopes_control.toy
+        artifact: out/scopes_control
+        kind: run
+        expect_stdout: features/scopes_control.out
+  - id: strings_io
+    title: ASCII 输入、EOF 和字符串操作
+    tests:
+      - id: run
+        source: features/strings_io.toy
+        artifact: out/strings_io
+        kind: run
+        expect_stdout: features/strings_io.out
+        stdin: features/strings_io.in
+  - id: value_copy
+    title: 结构体与数组的值复制
+    tests:
+      - id: run
+        source: features/value_copy.toy
+        artifact: out/value_copy
+        kind: run
+        expect_stdout: features/value_copy.out
+  - id: tutorial
+    title: 带注释的项目导读示例
+    tests:
+      - id: run
+        source: examples/tutorial/walkthrough.toy
+        artifact: out/tutorial
+        kind: run
+        expect_stdout: examples/tutorial/walkthrough.out
+  - id: semantic_rejections
+    title: 初始化、递归与传递性副作用反例
+    tests:
+      - id: uninitialized
+        source: features/uninitialized.toy
+        artifact: out/uninitialized
+        kind: compile_error
+        diagnostic_contains: "uninitialized"
+      - id: missing_prototype
+        source: features/missing_prototype.toy
+        artifact: out/missing_prototype
+        kind: compile_error
+        diagnostic_contains: "preceding prototype"
+      - id: parallel_io
+        source: features/parallel_io.toy
+        artifact: out/parallel_io
+        kind: compile_error
+        diagnostic_contains: "may perform I/O"
 algorithms: []

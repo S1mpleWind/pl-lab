@@ -10,6 +10,7 @@
 
 namespace lab::backend {
 namespace {
+// 临时目录与最终产物同文件系统，成功后的 rename 可原子发布。
 struct Temporary {
     std::filesystem::path directory;
     explicit Temporary(const std::filesystem::path &parent) {
@@ -27,6 +28,7 @@ struct Temporary {
         std::filesystem::remove_all(directory, ignored);
     }
 };
+// 参数直接交给 execvp，不经过 shell；路径中的空格或 $() 不会成为命令。
 void run(const std::vector<std::string> &args) {
     auto pid = fork();
     if (pid < 0)

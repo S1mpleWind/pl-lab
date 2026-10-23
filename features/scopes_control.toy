@@ -1,0 +1,10 @@
+def main() -> void {
+    var value: int;
+    if (true) { value = 3; } else { value = 4; }
+    { var value: int = 8; { var value: int = 9; print(string(value)); } print(string(value)); }
+    print(string(value));
+    var i: int = 0;
+    while (i < 2) { print(string(i)); i = i + 1; }
+    for (var k: int = 0; k < 2; k = k + 1) { print(string(k)); }
+    print("\n");
+}

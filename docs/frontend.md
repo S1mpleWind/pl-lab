@@ -20,7 +20,7 @@
 | 注释 | `//` 到行末；`/* ... */`，不支持块注释嵌套 |
 | 空白 | 空格、制表、换行等，跳过但更新源码位置 |
 
-关键字：`def var struct if elif else while for return parallel map in yield new int bool string void true false`。`range`、`len`、`print` 等是普通标识符，是否为内置函数由语义阶段判断。`let` 不属于声明语法。
+关键字：`def var struct if elif else while for return parallel map in yield new int float bool string void true false`。`range`、`len`、`print` 等是普通标识符，是否为内置函数由语义阶段判断。`let` 不属于声明语法。
 
 Flex 将正规表达式转为自动机：由规则构造 NFA、通过子集构造得到 DFA，生成扫描表；运行时执行最长匹配，长度相同时使用先出现的规则。因此关键字优先于同长标识符，`iffy` 仍是完整标识符，`<=` 不会被拆成两个 token。字符串和块注释分别使用独立词法状态；未知转义、非 ASCII 字符串、非法字节及未闭合字符串/注释均报词法错误。
 
@@ -30,17 +30,18 @@ Flex 将正规表达式转为自动机：由规则构造 NFA、通过子集构�
 
 ## 表层语法
 
-下面是完整 Bison 文法的阅读概览，实际规则以 `parser.y` 为准。所有条件和循环体都必须使用大括号。
+下面是完整 Bison 文法的阅读概览，完整 EBNF 见 [grammar.md](grammar.md)，实际生成规则以 `parser.y` 为准。所有条件和循环体都必须使用大括号。
 
 ```text
 文件          := 顶层声明*
-顶层声明      := 函数定义 | 结构体定义
+顶层声明      := 函数定义 | 函数原型 | 结构体定义
 函数定义      := def 名称(参数列表?) -> 类型 代码块
+函数原型      := def 名称(参数列表?) -> 类型 ;
 参数          := 名称: 类型
 结构体定义    := struct 名称 { 字段* } ;?
 字段          := 名称: 类型 ;
 类型          := 基础类型 | 基础类型[]
-基础类型      := int | bool | string | void | 用户类型名称
+基础类型      := int | float | bool | string | void | 用户类型名称
 
 代码块        := { 语句* }
 变量声明      := var 名称: 类型 (= 表达式)? ;
@@ -56,7 +57,7 @@ Flex 将正规表达式转为自动机：由规则构造 NFA、通过子集构�
 
 数组字面量    := [表达式列表?]
 数组创建      := new 基础类型[表达式]
-显式转换      := (int | bool | string)(表达式)
+显式转换      := (int | float | bool | string)(表达式)
 并行映射      := parallel map (下标名, 元素名 in 表达式)
                  { 语句* yield 表达式; }
 ```

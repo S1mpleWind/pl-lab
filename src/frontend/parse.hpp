@@ -15,6 +15,7 @@ struct Token {
     SourceSpan span;
 };
 
+// 每次解析拥有独立 scanner 和声明容器；没有跨文件共享的词法状态。
 class ParseContext {
 public:
     ParseContext(std::string filename, std::string_view source)

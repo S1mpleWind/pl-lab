@@ -1,0 +1,10 @@
+def main() -> void {
+    var first: int = read_char();
+    var eof: int = read_char();
+    var s: string = concat("abc", "def");
+    print(substr(s, 1, 4));
+    print(string(s == "abcdef"));
+    print(" "); print(string(len(s)));
+    print(" "); print(string(first));
+    print(" "); print(string(eof)); print("\n");
+}

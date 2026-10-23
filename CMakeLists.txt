@@ -9,6 +9,7 @@ target_compile_options(lab_ast PRIVATE -Wall -Wextra -Wpedantic)
 
 find_package(BISON 3.8 REQUIRED)
 find_package(FLEX 2.6 REQUIRED)
+# 生成文件只进入 build；规则文件仍是前端的唯一手工维护入口。
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/frontend")
 BISON_TARGET(LabParser src/frontend/parser.y
     "${CMAKE_CURRENT_BINARY_DIR}/generated/frontend/parser.cpp"
@@ -23,6 +24,7 @@ target_include_directories(lab_frontend PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/gene
 target_link_libraries(lab_frontend PUBLIC lab_ast)
 target_compile_options(lab_frontend PRIVATE -Wall -Wextra -Wpedantic)
 find_package(Threads REQUIRED)
+# runtime 自带程序入口，链接到生成的 ELF；labc 不链接这个 main。
 add_library(lab_runtime STATIC runtime/runtime.cpp)
 target_link_libraries(lab_runtime PUBLIC Threads::Threads)
 target_compile_options(lab_runtime PRIVATE -Wall -Wextra -Wpedantic)
@@ -31,6 +33,7 @@ target_link_libraries(lab_middle PUBLIC lab_ast)
 target_compile_options(lab_middle PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(labc src/driver/main.cpp)
 target_link_libraries(labc PRIVATE lab_frontend lab_middle)
+# 构建 labc 时也准备好运行时 archive，供后端后续链接使用。
 add_dependencies(labc lab_runtime)
 target_compile_options(labc PRIVATE -Wall -Wextra -Wpedantic)
 

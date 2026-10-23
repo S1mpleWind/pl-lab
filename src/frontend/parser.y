@@ -64,6 +64,7 @@ lab::ast::ExprPtr unary(lab::SourceSpan span, std::string op, lab::ast::ExprPtr 
 %type <lab::ast::ExprPtr> expression expression_optional initializer
 %type <lab::ast::ExprPtr> disjunction conjunction equality comparison sum product unary postfix primary parallel_map
 %type <lab::ast::Expressions> arguments argument_list
+/* 下方产生式只构造 AST。类型检查在 sema 中，不能在这里输出 LLVM IR。 */
 %start translation_unit
 
 %%

@@ -22,6 +22,8 @@ struct Binding {
     bool initialized;
     bool readonly;
 };
+// AST 地址是旁表键：Checked 不能比原 Program 活得更久，也不能换一棵树复用。
+// 函数表仅保存有函数体的定义；原型仅在检查时参与签名和顺序验证。
 struct Checked {
     std::unordered_map<const ast::Expr *, Type> types;
     std::set<const ast::Expr *> promotions; // Checked int -> float conversions.

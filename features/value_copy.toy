@@ -1,0 +1,10 @@
+struct Box { values: int[]; }
+def changed(b: Box) -> Box { b.values[0] = 9; return b; }
+def main() -> void {
+    var a: Box = Box([1, 2]);
+    var b: Box = changed(a);
+    var c: Box = a;
+    c.values[1] = 8;
+    print(string(a.values[0])); print(string(a.values[1]));
+    print(string(b.values[0])); print(string(c.values[1])); print("\n");
+}

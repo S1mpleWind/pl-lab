@@ -1,0 +1,5 @@
+def noisy() -> int { print("forbidden"); return 1; }
+def main() -> void {
+    var input: int[] = [1];
+    var output: int[] = parallel map (i, x in input) { yield noisy(); };
+}
