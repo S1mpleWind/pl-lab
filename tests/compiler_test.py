@@ -396,6 +396,21 @@ class CompilerTests(unittest.TestCase):
         tokens=json.loads(result.stdout)['files'][0]['tokens']
         self.assertTrue(any(t['kind']=='float literal' and t['value']=='1.25e-2' for t in tokens))
 
+    def test_repeated_small_parallel_maps(self):
+        # 快任务反复结束，覆盖剩余任务计数、通知和栈上等待状态的生命周期。
+        source = '''def main()->void {
+            var sum:int=0;
+            for(var round:int=0;round<200;round=round+1){
+                var a:int[]=[round];
+                var b:int[]=parallel map(i,x in a){yield x+1;};
+                sum=sum+b[0];
+            }
+            print(string(sum));
+        }'''
+        for workers in ['1','2','4']:
+            with self.subTest(workers=workers):
+                self.run_program(source,b'20100',threads=workers)
+
     def test_non_ascii_input(self):
         result = self.compile('def main()->void{read_char();}')
         self.assertEqual(result.returncode, 0, result.stderr.decode())

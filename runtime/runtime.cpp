@@ -79,6 +79,7 @@ void bounds(Object &o, I i) {
     if (i < 0 || static_cast<std::uint64_t>(i) >= o.values.size())
         error("array index out of bounds");
 }
+// 字符串不可变，可共享；只有复合对象槽递归复制，避免参数/赋值产生可写别名。
 I clone(I h) {
     auto &source = object(h);
     I result = make_object(source.values.size());
@@ -120,6 +121,7 @@ class Pool {
                             task = std::move(tasks.front());
                             tasks.pop_front();
                         }
+                        // 队列锁只保护领取任务；执行时释放，否则工作线程会被串行化。
                         task();
                     }
                 });
@@ -357,6 +359,7 @@ I lab_parallel(I input, I environment, I (*callback)(I, I, I), I composite) {
     std::size_t remaining = 0;
     std::exception_ptr failure;
     std::size_t failed_index = source.values.size();
+    // 预先固定结果大小，不在工作线程 resize。每个下标只被一个线程领取并写入。
     auto task = [&] {
         for (;;) {
             auto i = next.fetch_add(1);
@@ -366,6 +369,7 @@ I lab_parallel(I input, I environment, I (*callback)(I, I, I), I composite) {
                 dest.values[i] = callback(static_cast<I>(i), source.values[i], environment);
             } catch (...) {
                 std::lock_guard<std::mutex> lock(mutex);
+                // 保留最小输入下标的错误，而不是最先完成/抛错的线程。
                 if (i < failed_index) {
                     failed_index = i;
                     failure = std::current_exception();
@@ -375,8 +379,10 @@ I lab_parallel(I input, I environment, I (*callback)(I, I, I), I composite) {
         {
             std::lock_guard<std::mutex> lock(mutex);
             --remaining;
+            // 必须在锁内通知：调用线程取得同一把锁后才可观察 remaining == 0。
+            // 若解锁后再 notify，它可能已返回并销毁栈上的 finished 条件变量。
+            finished.notify_one();
         }
-        finished.notify_one();
     };
     // A submission failure must still wait for all successfully queued tasks.
     std::exception_ptr submission;
