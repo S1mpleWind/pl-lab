@@ -2,6 +2,7 @@
 #include "backend/build.hpp"
 #include "frontend/parse.hpp"
 #include "ir/emit.hpp"
+#include "ir/optimize.hpp"
 #include "sema/check.hpp"
 
 #include <filesystem>
@@ -15,7 +16,7 @@
 namespace {
 void usage(std::ostream &out) {
     out << "usage: labc [--dump-ast | --dump-tokens | --check | --emit-llvm | --compile] "
-           "[--no-locations] [-o FILE] SOURCE...\n"
+           "[-O0 | -O1] [--no-locations] [-o FILE] SOURCE...\n"
            "Default: AST JSON. --compile requires -o FILE; LAB_CLANG selects clang++.\n";
 }
 
@@ -69,6 +70,7 @@ int main(int argc, char **argv) {
         bool token_mode = false;
         bool ast_mode = false;
         bool locations = true;
+        bool optimize = false;
         bool options = true;
         std::string output;
         std::vector<std::string> paths;
@@ -89,6 +91,10 @@ int main(int argc, char **argv) {
                 token_mode = true;
             else if (options && arg == "--dump-ast")
                 ast_mode = true;
+            else if (options && arg == "-O0")
+                optimize = false;
+            else if (options && arg == "-O1")
+                optimize = true;
             else if (options && arg == "--no-locations")
                 locations = false;
             else if (options && (arg == "-o" || arg == "--output")) {
@@ -139,6 +145,8 @@ int main(int argc, char **argv) {
                 if (check_mode)
                     return 0;
                 auto llvm = lab::ir::emit(program, checked);
+                if (optimize)
+                    llvm = lab::ir::optimize(llvm);
                 if (compile_mode) {
                     auto executable = std::filesystem::canonical("/proc/self/exe");
                     lab::backend::build(llvm, output,

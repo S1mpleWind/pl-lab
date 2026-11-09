@@ -269,3 +269,13 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - grader validate 及 11 个自声明用例全部通过，包含带注释的导读程序；文档内相对链接目标均存在。最后追加的构建/词法/文法注释通过本地重新生成及构建。
 - 命令：`LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。日志保存在 `reports/documentation-and-features.log` 和 `reports/documentation-local-build.log`（不提交生成文件）。
 - 待完成：公开算法源程序、课程正式 suite/CI 与最终验收；当前文档和功能回归不替代这些步骤。
+
+### 2026-11-09：中端优化实验
+
+- 新分支 `experiment/middle-optimizations`，增加 -O0/-O1 和 compile.sh 的 LAB_OPT_LEVEL。
+- LLVM mem2reg/sccp/simplifycfg/adce 提供 SSA、常量传播、分支与不可达块清理及死代码消除。项目实现安全整数辅助调用常量折叠，与 LLVM passes 迭代。
+- 保留溢出、除零、I/O 及并行行为，语义检查在优化前执行。
+- 本地构建通过。课程依赖镜像 `compilerlab-frontend:test` 中 CTest 5/5 通过，含前端 API/CLI、O0 与 O1 各 29 个原生测试方法、5 个优化专项测试。grader 自声明功能检查通过。
+- 结构验证确认常量表达式、局部存储和分支化简成单条常量返回。差分验证覆盖溢出/除零、未使用结果的副作用、循环、动态分支汇合、短路及并行。
+- 命令为 `LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。日志在 `reports/middle-optimizations.log` 和 `reports/middle-optimizations-local-build.log`。
+- 实现选择为复用 LLVM passes，并由项目补充安全整数辅助调用折叠。默认保持 O0，通过 -O1 显式启用。浮点运行时调用保持保守处理。

@@ -28,7 +28,7 @@ find_package(Threads REQUIRED)
 add_library(lab_runtime STATIC runtime/runtime.cpp)
 target_link_libraries(lab_runtime PUBLIC Threads::Threads)
 target_compile_options(lab_runtime PRIVATE -Wall -Wextra -Wpedantic)
-add_library(lab_middle src/sema/check.cpp src/ir/emit.cpp src/backend/build.cpp)
+add_library(lab_middle src/sema/check.cpp src/ir/emit.cpp src/ir/optimize.cpp src/backend/build.cpp)
 target_link_libraries(lab_middle PUBLIC lab_ast)
 target_compile_options(lab_middle PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(labc src/driver/main.cpp)
@@ -51,6 +51,13 @@ if(BUILD_TESTING)
     add_test(NAME native_compiler COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/compiler_test.py"
         --compiler $<TARGET_FILE:labc>)
-    set_tests_properties(native_compiler PROPERTIES TIMEOUT 240)
+    add_test(NAME native_compiler_o1 COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/compiler_test.py"
+        --compiler $<TARGET_FILE:labc> --opt-level 1)
+    add_test(NAME optimizer COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/optimizer_test.py"
+        --compiler $<TARGET_FILE:labc>)
+    set_tests_properties(native_compiler native_compiler_o1 optimizer PROPERTIES TIMEOUT 240)
+    set_tests_properties(native_compiler_o1 PROPERTIES ENVIRONMENT "LAB_OPT_LEVEL=1")
     set_tests_properties(frontend_api frontend_cli PROPERTIES TIMEOUT 60)
 endif()

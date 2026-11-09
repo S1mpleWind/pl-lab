@@ -21,4 +21,4 @@ for source in sources:
         sys.exit(2)
 PY
 rm -f -- "$artifact"
-exec "$root/build/labc" --compile -o "$artifact" -- "${sources[@]}"
+exec "$root/build/labc" --compile "-O${LAB_OPT_LEVEL:-0}" -o "$artifact" -- "${sources[@]}"

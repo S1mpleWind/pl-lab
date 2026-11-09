@@ -9,6 +9,7 @@ import unittest
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--compiler', required=True)
+parser.add_argument('--opt-level', choices=['0','1'], default='0')
 args, remaining = parser.parse_known_args()
 COMPILER = str(Path(args.compiler).resolve())
 
@@ -28,7 +29,7 @@ class CompilerTests(unittest.TestCase):
             second = self.root / 'second.toy'
             second.write_text(extra)
             paths.append(str(second))
-        return subprocess.run([COMPILER, '--compile', '-o', str(self.output), *paths], capture_output=True, timeout=30)
+        return subprocess.run([COMPILER, '--compile', '-O'+args.opt_level, '-o', str(self.output), *paths], capture_output=True, timeout=30)
 
     def run_program(self, source, expected=b'', stdin=b'', threads='1', extra=None):
         built = self.compile(source, extra)
