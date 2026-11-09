@@ -28,3 +28,7 @@
 `compilerlab.yaml` 现包含综合原生/递归/并行、浮点、三层作用域与控制流、ASCII 输入及 EOF、字符串操作、结构体/数组值复制，以及带注释的导读程序。静态反例覆盖 Bool 数值运算、未初始化读取、递归缺原型和辅助函数间接 I/O。
 
 运行时错误及并行边界由 `tests/compiler_test.py` 覆盖：当前课程声明协议只支持正常执行或编译错误，不把运行时错误伪装成成功功能用例。连续小 map 回归覆盖完成等待的生命周期；它不能替代对同步协议的推理或证明所有调度都安全。
+
+## 中端优化分支
+
+`experiment/middle-optimizations` 按 PDF 第 4.2 节实现自写跨块常量传播、分支裁剪、不可达删除、死代码消除及副作用分析。`--emit-llvm` 和 `--emit-cfg` 配合 -O0/-O1 导出前后 LLVM IR 和 DOT 图。LLVM 仅参与 IR 校验。实现和复现说明见 [中端优化](optimization.md)，验证结果见 [实验报告](reports/middle-optimization-report.md)。

@@ -1,46 +1,43 @@
 # 中端优化
 
-阶段性实验报告见 [中端优化实验报告](reports/middle-optimization-report.md)。课程第 4.2 节要求自行实现主要分析和变换，并导出前后控制流图，当前实现的验收差距记录在报告第 6 节。
+分支 `experiment/middle-optimizations` 提供 `-O1`。优化器在语义检查后处理本项目生成的 LLVM IR，默认等级为 `-O0`。实现和实验结果见 [实验报告](reports/middle-optimization-report.md)。
 
-实验分支 `experiment/middle-optimizations` 增加 `-O1`，默认等级为 `-O0`。语义检查完成后，优化器处理生成的 LLVM IR，再交给后端生成 ELF。
-
-## 使用
+## 使用与导出
 
 ```bash
 mkdir -p out
-build/labc --emit-llvm -O0 -o out/before.ll features/core.toy
-build/labc --emit-llvm -O1 -o out/after.ll features/core.toy
-build/labc --compile -O1 -o out/core features/core.toy
-LAB_OPT_LEVEL=1 bash compile.sh features/core.toy out/core
-bash run.sh out/core
+build/labc --emit-llvm -O0 -o out/before.ll examples/optimization/constant_branch.toy
+build/labc --emit-llvm -O1 -o out/after.ll examples/optimization/constant_branch.toy
+build/labc --emit-cfg -O0 -o out/before.dot examples/optimization/constant_branch.toy
+build/labc --emit-cfg -O1 -o out/after.dot examples/optimization/constant_branch.toy
+LAB_OPT_LEVEL=1 bash compile.sh examples/optimization/constant_branch.toy out/example
+bash run.sh out/example
 ```
 
-`-O1` 需要 LLVM 的 `opt`，`setup.sh` 通过 llvm 包准备它。`LAB_OPT` 可以指定 opt 可执行路径，`LAB_CLANG` 指定 clang++ 路径，二者应选用兼容的 LLVM 版本。工具调用通过独立参数执行。优化失败返回 2，临时目录自动清理。
+该示例正常退出码为 20。DOT 按函数分组，节点标签包含基本块名和主要指令，边带 true/false 标签。安装 Graphviz 后可执行 `dot -Tsvg out/after.dot -o out/after.svg` 查看。
 
-## 实现与顺序
+## 自写分析与变换
 
-`src/ir/optimize.cpp` 调用 LLVM New Pass Manager，并在每次运行后校验 IR。
+实现入口为 `src/ir/optimize.cpp`。内部用 Module、Function、Block、Instruction 表示模块、函数、基本块和指令，显式记录执行结果、操作数和跳转目标。
 
-| 阶段 | 实现 | 行为 |
-| --- | --- | --- |
-| 局部变量 SSA 提升 | LLVM mem2reg | 消除可提升的 alloca/load/store，构造 phi |
-| 常量传播 | LLVM sccp | 沿可执行控制流边传播常量并求不动点 |
-| 分支裁剪及不可达块删除 | LLVM simplifycfg | 折叠常量条件，清理失去可达路径的基本块 |
-| 死代码消除 | LLVM adce | 删除对可观察行为没有贡献的指令 |
-| 整数辅助调用折叠 | 项目自写 evaluate/fold | 求已知整数参数的安全运算，生成常量定义 |
+| 阶段 | 算法及约束 |
+| --- | --- |
+| 跨块常量传播 | 正向数据流迭代，维护可执行边、SSA 值及不逃逸栈槽的常量事实，汇合时只保留各路径一致的事实 |
+| 常量求值 | 求整数运算、比较、布尔运算及 phi 的常量值，溢出/除零保持原调用 |
+| 分支裁剪 | 常量条件改为直接跳转 |
+| 不可达删除 | 从入口重新计算可达集合，删除不可达块并修复 phi 输入 |
+| 副作用分析 | 显式分类 I/O、堆写入、分配、运行时错误、未知行为及可能不终止，沿调用图求闭包 |
+| 死代码消除 | 以可观察效果和控制流为根，反向标记 SSA 依赖及活跃栈槽，再删除未标记指令和无用局部写入 |
+| 基本块合并 | 合并只有唯一前驱的跳转目标，更新后继 phi 的前驱标记 |
 
-源语言整数算术通过 `lab_int_op` 和 `lab_int_neg` 实现检查。优化器识别这些完整调用指令，仅当参数全为常量且计算成功时替换。之后重新运行 LLVM passes，让新常量继续传播。循环在没有可折叠调用时结束，能够处理多层常量表达式。
+以上变换反复执行直到 IR 稳定。循环和递归被保守视为可能不终止，即使返回值未使用，也保留相应调用。未知指令和未知调用采用保守副作用分类。浮点运行时算术保留原调用。
 
-例如 `var x:int=2+3; if(x==5){return x*4;}else{return 1;}` 在优化后的函数体中可成为 `ret i64 20`，局部存储、算术调用和条件基本块都被删除。
+## LLVM 使用范围
 
-## 语义约束
+所有分析和变换由项目 C++ 代码实现。`opt -passes=verify -disable-output` 在优化前后检查 IR 合法性。`LAB_OPT` 指定 verifier 的路径，`LAB_CLANG` 指定后端 clang++，两者应使用兼容版本。工具错误返回 2，临时工作目录自动清理。
 
-语义检查先于优化，因此不可达源分支中的类型错误仍在编译期报告。整数溢出、除零和最小整数取负保持运行时诊断。未使用的结果也可能产生错误，删除指令必须保留这些可观察行为。
-
-用户函数、I/O、数组检查、分配和浮点运行时调用保留保守的副作用属性。整数辅助调用只有在证明计算成功后才能替换。浮点运行时算术目前保持原调用，LLVM 可优化其周围的存储和控制流。
+语义检查先于优化，因此不可达源分支中的类型错误仍会被拒绝。ABI 和从左到右求值约定见 [后端说明](backend.md)。
 
 ## 测试
 
-镜像入口仍为 `LAB_SUBMISSION_TESTS=1 bash tests/in-image.sh`。CTest 增加 `native_compiler_o1` 和 `optimizer`，分别执行 O1 下的完整原生回归，以及结构和行为差分检查。
-
-结构检查确认常量返回、无条件分支、无局部存储和无多余调用。行为检查逐字节比较 O0/O1 的退出码、stdout 和 stderr，覆盖运行时错误、I/O、循环、分支汇合、短路和并行结果。`-verify-each` 同时检查 LLVM IR 的合法性。
+`LAB_SUBMISSION_TESTS=1 bash tests/in-image.sh` 从干净源码构建并运行全部回归。`native_compiler` 和 `native_compiler_o1` 覆盖两个等级，`optimizer` 专项检查结构、行为差分、跨块汇合、phi、副作用和非终止调用保留、CFG 结构，以及 LLVM 工具只执行 verify 的约束。

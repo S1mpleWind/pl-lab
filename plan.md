@@ -286,3 +286,12 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 复核课程 PDF 第 4.2 节后发现上一轮验收口径有偏差，课程要求主要分析和变换自行实现，当前调用 LLVM 现成 passes 的实现仍需补齐。
 - 待完成跨基本块常量传播、分支裁剪、不可达删除、DCE 和副作用分析的自写实现，以及优化前后的控制流图导出。当前报告按阶段成果记录。
 - 本轮只修改报告及文档索引，验证使用 `9167ce6` 已记录的镜像测试结果。
+
+### 2026-11-09：修正中端优化的课程实现要求
+
+- 替换此前调用 LLVM 现成 passes 的实现，自行实现显式 CFG/指令表示、跨基本块常量数据流、phi 求值、分支裁剪、不可达块删除、活性标记 DCE 和单前驱块合并。
+- 自行分类并传播调用副作用，保留 I/O、分配、可能抛错访问、循环和递归的非终止行为。LLVM 调用仅保留 `-passes=verify -disable-output`。
+- 新增 `--emit-cfg -O0/-O1` DOT 图导出与可复现实例，更新实验报告并闭合此前记录的两项缺口。
+- 本地构建通过，镜像中 CTest 5/5 通过，包括 O0/O1 各 29 个原生测试方法和 9 个专项测试。grader 的全部自声明功能用例通过。
+- 专项新增跨块相同值汇合、动态短路 phi、纯调用删除、传递性 I/O、循环/递归调用保留、CFG 结构及仅运行 LLVM verify 的检查。
+- 命令仍为 `LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。日志在 `reports/owned-optimizations.log` 和 `reports/owned-optimizations-local-build.log`。

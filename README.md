@@ -37,7 +37,7 @@ LAB_THREADS=4 bash run.sh out/core
 
 ## 中端优化
 
-优化等级、四类 passes 和验证方式见 [docs/optimization.md](docs/optimization.md)。使用 `build/labc --compile -O1 -o out/core features/core.toy` 或 `LAB_OPT_LEVEL=1 bash compile.sh features/core.toy out/core` 启用。
+自写优化算法、前后 CFG 导出和验证方式见 [docs/optimization.md](docs/optimization.md)。使用 `build/labc --compile -O1 -o out/core features/core.toy` 或 `LAB_OPT_LEVEL=1 bash compile.sh features/core.toy out/core` 启用。
 
 ## 镜像测试
 

@@ -148,3 +148,9 @@ def fact(n: int) -> int {
     return n * fact(n - 1);
 }
 ```
+
+## 中端优化扩展
+
+优化分支提供 -O0/-O1。跨基本块常量传播、常量分支裁剪、不可达基本块删除、死代码消除和调用图副作用分析由项目实现。LLVM 负责 IR 校验。优化保持运行时错误、输入输出及可能不终止调用的行为。
+
+`--emit-llvm` 和 `--emit-cfg` 可以分别导出优化前后的 IR 与 DOT 控制流图。算法及实验结果见 `docs/optimization.md` 和 `docs/reports/middle-optimization-report.md`。
