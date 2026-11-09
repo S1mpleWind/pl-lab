@@ -15,7 +15,8 @@
 
 namespace {
 void usage(std::ostream &out) {
-    out << "usage: labc [--dump-ast | --dump-tokens | --check | --emit-llvm | --compile] "
+    out << "usage: labc [--dump-ast | --dump-tokens | --check | --emit-llvm | --emit-cfg | "
+           "--compile] "
            "[-O0 | -O1] [--no-locations] [-o FILE] SOURCE...\n"
            "Default: AST JSON. --compile requires -o FILE; LAB_CLANG selects clang++.\n";
 }
@@ -67,6 +68,7 @@ void tokens_json(std::ostream &out, const std::vector<std::string> &paths, bool 
 int main(int argc, char **argv) {
     try {
         bool check_mode = false, llvm_mode = false, compile_mode = false;
+        bool cfg_mode = false;
         bool token_mode = false;
         bool ast_mode = false;
         bool locations = true;
@@ -85,6 +87,8 @@ int main(int argc, char **argv) {
                 check_mode = true;
             else if (options && arg == "--emit-llvm")
                 llvm_mode = true;
+            else if (options && arg == "--emit-cfg")
+                cfg_mode = true;
             else if (options && arg == "--compile")
                 compile_mode = true;
             else if (options && arg == "--dump-tokens")
@@ -112,7 +116,8 @@ int main(int argc, char **argv) {
             usage(std::cerr);
             return 2;
         }
-        if (int(ast_mode) + int(token_mode) + int(check_mode) + int(llvm_mode) + int(compile_mode) >
+        if (int(ast_mode) + int(token_mode) + int(check_mode) + int(llvm_mode) + int(cfg_mode) +
+                int(compile_mode) >
             1)
             throw std::runtime_error("choose one dump mode or compilation mode");
         if (compile_mode && output.empty())
@@ -140,7 +145,7 @@ int main(int argc, char **argv) {
         else {
             // Program 必须存活到 sema 和 IR 都结束，Checked 内保存借用的 AST 地址。
             auto program = lab::frontend::parse_files(paths);
-            if (check_mode || llvm_mode || compile_mode) {
+            if (check_mode || llvm_mode || cfg_mode || compile_mode) {
                 auto checked = lab::sema::check(program);
                 if (check_mode)
                     return 0;
@@ -153,7 +158,7 @@ int main(int argc, char **argv) {
                                         executable.parent_path() / "liblab_runtime.a");
                     return 0;
                 }
-                rendered << llvm;
+                rendered << (cfg_mode ? lab::ir::control_flow_graph(llvm) : llvm);
             } else
                 lab::ast::dump_json(rendered, program, locations);
         }

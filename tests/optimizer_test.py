@@ -86,5 +86,69 @@ class OptimizerTests(unittest.TestCase):
         self.assertEqual(result.returncode,2)
         self.assertFalse(artifact.exists())
 
+    def test_cross_block_join_and_phi(self):
+        same = """def main()->int{var x:int;
+            if(read_char()==65){x=4;}else{x=4;}return x+3;}"""
+        ir=self.ir(same)
+        main=ir.split('define i64 @user_main',1)[1].split('}',1)[0]
+        self.assertIn('ret i64 7',main)
+        self.assertNotIn('call i64 @lab_int_op',main)
+        self.assertEqual(self.compare(same,b'A')[0],7)
+        self.assertEqual(self.compare(same,b'Z')[0],7)
+        dynamic="""def main()->void{
+            var b:bool=read_char()==65 && read_char()==66;
+            print(string(b));print(string(read_char()));}"""
+        self.assertEqual(self.compare(dynamic,b'ABZ')[1],b'true90')
+        self.assertEqual(self.compare(dynamic,b'XZ')[1],b'false90')
+
+    def test_effect_analysis_and_nontermination(self):
+        source='def pure()->int{return 7;}def main()->void{pure();}'
+        main=self.ir(source).split('define i64 @user_main',1)[1].split('}',1)[0]
+        self.assertNotIn('@user_pure',main)
+        io='def leaf()->int{print("kept");return 1;}def wrap()->int{return leaf();}def main()->void{wrap();}'
+        self.assertEqual(self.compare(io)[1],b'kept')
+        loop='def spin()->void{while(true){}}def main()->void{spin();}'
+        main=self.ir(loop).split('define i64 @user_main',1)[1].split('}',1)[0]
+        self.assertIn('@user_spin',main)
+        recursion='def spin()->void;def spin()->void{spin();}def main()->void{spin();}'
+        main=self.ir(recursion).split('define i64 @user_main',1)[1].split('}',1)[0]
+        self.assertIn('@user_spin',main)
+
+    def test_cfg_export(self):
+        import re
+        self.source.write_text('def main()->int{var x:int=2+3;if(x==5){return 20;}else{return 1;}}')
+        graphs=[]
+        for level in [0,1]:
+            result=subprocess.run([compiler,'--emit-cfg',f'-O{level}',str(self.source)],capture_output=True)
+            self.assertEqual(result.returncode,0,result.stderr.decode())
+            graph=result.stdout.decode()
+            self.assertTrue(graph.startswith('digraph module {'))
+            nodes=set(re.findall(r'^    "([^"]+)" \[label=',graph,re.M))
+            for left,right in re.findall(r'"([^"]+)" -> "([^"]+)"',graph):
+                self.assertIn(left,nodes)
+                self.assertIn(right,nodes)
+            graphs.append(graph)
+        self.assertIn('label="true"',graphs[0])
+        self.assertIn('ret i64 20',graphs[1])
+        self.assertLess(graphs[1].count(' -> '),graphs[0].count(' -> '))
+
+    def test_only_llvm_verification_is_used(self):
+        import shutil
+        import sys
+        wrapper=self.root/'verify-wrapper'
+        log=self.root/'calls'
+        real_opt=shutil.which('opt')
+        wrapper.write_text('#!'+sys.executable+'\nimport sys,subprocess\n'
+            +'from pathlib import Path\n'
+            +'assert sys.argv[1:3]==["-passes=verify","-disable-output"]\n'
+            +'with Path('+repr(str(log))+').open("a") as stream: stream.write("verify\\n")\n'
+            +'sys.exit(subprocess.call(['+repr(real_opt)+']+sys.argv[1:]))\n')
+        wrapper.chmod(0o755)
+        self.source.write_text('def main()->int{return 2+3;}')
+        result=subprocess.run([compiler,'--emit-llvm','-O1',str(self.source)],capture_output=True,
+                              env=dict(os.environ,LAB_OPT=str(wrapper)))
+        self.assertEqual(result.returncode,0,result.stderr.decode())
+        self.assertEqual(log.read_text().splitlines(),['verify','verify'])
+
 if __name__=='__main__':
     unittest.main(argv=[__file__,*rest])

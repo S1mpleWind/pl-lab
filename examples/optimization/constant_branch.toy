@@ -1,0 +1,7 @@
+// 同时展示常量传播、分支裁剪、不可达块删除和死代码消除。
+def main() -> int {
+    var x: int = 2 + 3;
+    var unused: int = 7 * 9;
+    if (x == 5) { return x * 4; }
+    else { print("unreachable"); return 1; }
+}

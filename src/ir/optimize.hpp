@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 namespace lab::ir {
-// LLVM scalar passes plus checked-integer runtime constant folding.
+// Dataflow and transformations for the LLVM subset emitted by this compiler.
 std::string optimize(const std::string &llvm);
+std::string control_flow_graph(const std::string &llvm);
 } // namespace lab::ir
