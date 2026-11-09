@@ -1,5 +1,7 @@
 # 中端优化
 
+阶段性实验报告见 [中端优化实验报告](reports/middle-optimization-report.md)。课程第 4.2 节要求自行实现主要分析和变换，并导出前后控制流图，当前实现的验收差距记录在报告第 6 节。
+
 实验分支 `experiment/middle-optimizations` 增加 `-O1`，默认等级为 `-O0`。语义检查完成后，优化器处理生成的 LLVM IR，再交给后端生成 ELF。
 
 ## 使用

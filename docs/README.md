@@ -34,3 +34,5 @@
 - **runtime**：随产物链接的支持库，程序运行时负责输入输出、检查和并行调度。
 
 中端优化的 pass 顺序、开关与行为保证见 [optimization.md](optimization.md)。
+
+实验记录见 [中端优化实验报告](reports/middle-optimization-report.md)，包含实现、实例、验证结果与课程验收对照。

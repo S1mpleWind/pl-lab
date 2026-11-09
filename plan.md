@@ -279,3 +279,10 @@ docs/               # 文法、词法规则、ABI 和实现说明
 - 结构验证确认常量表达式、局部存储和分支化简成单条常量返回。差分验证覆盖溢出/除零、未使用结果的副作用、循环、动态分支汇合、短路及并行。
 - 命令为 `LAB_SUBMISSION_TESTS=1 DOCKER=/mnt/d/Program_Files/Docker/resources/bin/docker.exe bash tests/in-image.sh`。日志在 `reports/middle-optimizations.log` 和 `reports/middle-optimizations-local-build.log`。
 - 实现选择为复用 LLVM passes，并由项目补充安全整数辅助调用折叠。默认保持 O0，通过 -O1 显式启用。浮点运行时调用保持保守处理。
+
+### 2026-11-09：补充中端优化实验报告与要求复核
+
+- 新增 `docs/reports/middle-optimization-report.md`，记录实现基线、优化实例、语义保持措施、已有测试及复现方法。
+- 复核课程 PDF 第 4.2 节后发现上一轮验收口径有偏差，课程要求主要分析和变换自行实现，当前调用 LLVM 现成 passes 的实现仍需补齐。
+- 待完成跨基本块常量传播、分支裁剪、不可达删除、DCE 和副作用分析的自写实现，以及优化前后的控制流图导出。当前报告按阶段成果记录。
+- 本轮只修改报告及文档索引，验证使用 `9167ce6` 已记录的镜像测试结果。
